@@ -1,78 +1,69 @@
-
 import { CreativeFormat } from "../../types";
 import { PromptContext, ENHANCERS, getSafetyGuidelines } from "./imageUtils";
 import { ai } from "./client";
 
 /**
- * HELPER: Extracts the emotional vibe from the strategic context.
- */
-const getEmotionalContext = (ctx: PromptContext): string => {
-    const storyEmotion = ctx.fullStoryContext?.story?.emotionalTheme;
-    const hookAngle = ctx.parsedAngle.cleanAngle;
-    
-    if (storyEmotion) return storyEmotion;
-    
-    if (/sad|lonely|tired|exhausted/i.test(hookAngle)) return "Melancholic & Exhausted";
-    if (/angry|hate|stop|worst/i.test(hookAngle)) return "Frustrated & Aggressive";
-    if (/hope|fix|finally/i.test(hookAngle)) return "Hopeful & Relieved";
-    
-    return "Urgent & Visceral";
-};
-
-/**
- * HELPER: Extracts the mechanism logic.
- */
-const getMechanismContext = (ctx: PromptContext): string => {
-    return ctx.fullStoryContext?.mechanism?.scientificPseudo || "The Scientific Solution";
-};
-
-/**
- * AI PROMPT WRITER
- * Uses the LLM to synthesize strategy into a high-fidelity image prompt.
+ * AI PROMPT WRITER (UNIFIED ENGINE)
+ * Uses the LLM to synthesize strategy into a high-fidelity image prompt + embedded text.
  */
 export const generateAIWrittenPrompt = async (ctx: PromptContext): Promise<string> => {
     const { 
-        project, format, parsedAngle, visualScene, 
-        fullStoryContext, embeddedText, enhancer, safety 
+        project, format, parsedAngle, 
+        fullStoryContext, enhancer, safety, visualScene
     } = ctx;
 
     const story = fullStoryContext?.story;
     const mechanism = fullStoryContext?.mechanism;
     const bigIdea = fullStoryContext?.bigIdea;
-
-    // PRIORITY: Use embedded text (Creative Concept) if available, otherwise raw hook.
-    const textToRender = embeddedText || parsedAngle.cleanAngle;
+    
+    // Konteks Hook Utama
+    const mainHook = parsedAngle.cleanAngle;
 
     const systemPrompt = `
-    ROLE: Expert AI Prompt Engineer for Midjourney/Flux/Gemini.
+    ROLE: Hybrid Creative Director & Copywriter (Direct Response Expert).
     
-    INPUT CONTEXT (The Strategy):
-    - Product: ${project.productName} (${project.productDescription})
-    - Target Audience: ${project.targetAudience} in ${project.targetCountry}
-    - Key Emotion/Pain: ${story?.emotionalTheme || getEmotionalContext(ctx)}
-    - The Logic (Mechanism): ${mechanism?.scientificPseudo || "N/A"} (${mechanism?.ums || "N/A"})
-    - The Shift (Big Idea): ${bigIdea?.concept || "N/A"}
-    - Marketing Hook: "${parsedAngle.cleanAngle}"
+    You are generating a FINAL IMAGE PROMPT for a Generative AI model (like Midjourney/Flux).
+    You must define BOTH the **Visual Scene** AND the **Text Overlay/UI Content** in one cohesive description.
     
-    VISUAL GOAL (The Container):
-    - Format: ${format}
-    - Base Scene Description: ${visualScene}
-    - REQUIRED TEXT TO DISPLAY: "${textToRender}"
+    --- INPUT STRATEGY ---
+    PRODUCT: ${project.productName} (${project.productDescription})
+    TARGET AUDIENCE: ${project.targetAudience} in ${project.targetCountry}
+    FORMAT REQUIRED: ${format}
+    SCENE CONTEXT: ${visualScene}
     
-    TASK:
-    Write a HIGH-FIDELITY IMAGE GENERATION PROMPT based on the inputs above.
-    Synthesize the strategic context into visual descriptions (lighting, texture, angle, subject action).
+    CORE HOOK: "${mainHook}"
+    DEEP PAIN (Story Context): "${story?.narrative || 'General frustration'}"
+    THE SOLUTION (Mechanism): "${mechanism?.scientificPseudo || 'New Technology'}"
+    THE SHIFT (Big Idea): "${bigIdea?.concept || 'Better way'}"
     
-    CRITICAL RULES:
-    1. Do NOT explain the strategy. Just write the prompt description.
-    2. Incorporate the "Mechanism" logic into the visual details (e.g. if mechanism is "glitch", add "glitch art style").
-    3. Specify the camera angle, lighting, and film stock to match the "Key Emotion".
-    4. YOU MUST INCLUDE the strict instruction: 'RENDER TEXT: "${textToRender}"' in the prompt.
-    5. Append these technical modifiers at the end: "${enhancer}"
-    6. Adhere to safety guidelines: "${safety}"
+    --- LOGIC ROUTING & INSTRUCTIONS ---
     
-    OUTPUT FORMAT:
-    Return ONLY the raw prompt string. No "Here is the prompt" text.
+    **CASE 1: IF FORMAT IS 'NATIVE UI' (Twitter, Chat, Notification, IG Story, Reddit)**
+    - GOAL: Extreme Authenticity. Must look like a real screenshot.
+    - VISUAL: Describe the specific UI elements (Dark mode? Blue bubbles? User avatar?).
+    - COPYWRITING TASK: Write the specific text content inside the screenshot.
+      - Do NOT just write the Hook. Adapt the Hook into a tweet, a DM, or a confession.
+      - Use the 'Mechanism' logic in the text naturally (e.g., "I can't believe [Mechanism] actually fixed it").
+      - Make it sound human, imperfect, and emotional (matches the 'Deep Pain').
+    - PROMPT STRUCTURE START: "A realistic screenshot of a [Format Name]..."
+    
+    **CASE 2: IF FORMAT IS 'UGLY / MEME' (MS Paint, Ugly Visual)**
+    - GOAL: Pattern Interrupt. Looks amateur/bad on purpose.
+    - VISUAL: Describe a crude, low-effort drawing or photo. Use keywords: "MS Paint style", "pixelated", "harsh flash", "messy room".
+    - COPYWRITING TASK: Write a top/bottom caption or a simple text label.
+      - Use the 'Big Idea' sarcasm.
+      - Example Text: "Me trying to fix [Problem] without [Mechanism]".
+    
+    **CASE 3: IF FORMAT IS 'CINEMATIC / PHOTOGRAPHY'**
+    - GOAL: High Emotion & Atmosphere.
+    - VISUAL: Synthesize the 'Deep Pain' into Lighting and Mood. (e.g. If pain is insomnia -> Blue dark lighting, shadows).
+    - COPYWRITING TASK: Place the 'Core Hook' naturally in the scene (e.g. Neon sign, Text on a sticky note, Phone screen notification).
+    - ADD TECHNICAL SPECS: ${enhancer}
+    
+    --- FINAL OUTPUT INSTRUCTION ---
+    Write ONLY the raw prompt string. 
+    You MUST include the specific text you wrote using the phrase: 'RENDER TEXT: "Your Written Copy Here"'.
+    Include the Safety Guidelines at the end: ${safety}
     `;
 
     try {
@@ -81,286 +72,10 @@ export const generateAIWrittenPrompt = async (ctx: PromptContext): Promise<strin
             contents: systemPrompt
         });
         
-        const finalPrompt = response.text?.trim();
-        return finalPrompt || `${visualScene} RENDER TEXT: "${textToRender}" ${enhancer} ${safety}`;
-
+        return response.text?.trim() || "";
     } catch (e) {
-        console.error("Prompt Generation Failed", e);
-        return `${visualScene} RENDER TEXT: "${textToRender}" ${enhancer} ${safety}`; 
+        console.error("Unified Prompt Gen Failed", e);
+        // Fallback simple prompt jika error
+        return `A creative ad for ${project.productName} in style of ${format}. RENDER TEXT: "${mainHook}"`; 
     }
-};
-
-/**
- * UGLY FORMATS (Deterministic)
- */
-export const getUglyFormatPrompt = (ctx: PromptContext): string => {
-    const { format, parsedAngle, safety } = ctx;
-    const emotionalVibe = getEmotionalContext(ctx);
-    
-    // PRIORITY: Use embedded text (Creative Concept) if available, otherwise raw hook.
-    const textToRender = ctx.embeddedText || parsedAngle.cleanAngle;
-
-    if (format === CreativeFormat.BIG_FONT) {
-        return `
-          FORMAT ARCHETYPE: "The Brutalist Typography".
-          CORE CONCEPT: "If you shout loud enough, they will look."
-          FORMAT ESSENCE: A MASSIVE, UNAVOIDABLE STATEMENT. Typography dominates 80-90% of space.
-          STRATEGIC ADAPTATION: The Text "${textToRender}" is the hero. Channel "${emotionalVibe}" into font weight.
-          RENDER TEXT: "${textToRender}"
-          ${safety}
-        `;
-    }
-
-    if (format === CreativeFormat.UGLY_VISUAL || format === CreativeFormat.MS_PAINT) {
-        return `
-          FORMAT ARCHETYPE: "The Authentic Amateur".
-          CORE CONCEPT: "It looks so bad, it must be real."
-          FORMAT ESSENCE: Reject professional design. Embrace chaos, clutter, and bad lighting. Looks like a mistake.
-          STRATEGIC ADAPTATION: Show the "${emotionalVibe}" of the problem without filter.
-          OVERLAY TEXT: "${textToRender}" (Arial Font, Yellow Background).
-          RENDER TEXT: "${textToRender}"
-          ${safety}
-        `;
-    }
-
-    if (format === CreativeFormat.MEME) {
-        return `
-          FORMAT ARCHETYPE: "The Inside Joke".
-          CORE CONCEPT: "Shared pain is funny."
-          FORMAT ESSENCE: Internet culture visual language (Impact font, low-res).
-          STRATEGIC ADAPTATION: Visual irony depicting "${parsedAngle.cleanAngle}".
-          CAPTION: "${textToRender}"
-          RENDER TEXT: "${textToRender}"
-          ${safety}
-        `;
-    }
-
-    if (format === CreativeFormat.REDDIT_THREAD) {
-        return `
-          FORMAT ARCHETYPE: "The Anonymous Truth".
-          CORE CONCEPT: "What people only say when they are anonymous."
-          FORMAT ESSENCE: Dark-mode screenshot of text-heavy forum. Raw honesty.
-          STRATEGIC ADAPTATION: Thread Title is "${textToRender}".
-          RENDER TEXT: "${textToRender}"
-          ${safety}
-        `;
-    }
-
-    return getSpecificFormatPrompt(ctx);
-};
-
-/**
- * NATIVE / SOCIAL FORMATS (Deterministic)
- */
-export const getNativeStoryPrompt = (ctx: PromptContext): string => {
-    const { format, parsedAngle, enhancer, safety } = ctx;
-    const emotionalVibe = getEmotionalContext(ctx);
-    const mechanism = getMechanismContext(ctx);
-
-    // PRIORITY: Use embedded text (Creative Concept) if available, otherwise raw hook.
-    const textToRender = ctx.embeddedText || parsedAngle.cleanAngle;
-
-    if (format === CreativeFormat.IG_STORY_TEXT || format === CreativeFormat.STORY_QNA || format === CreativeFormat.STORY_POLL) {
-        return `
-          FORMAT ARCHETYPE: "The Casual Update".
-          CORE CONCEPT: "I'm just checking in with my friends."
-          FORMAT ESSENCE: Ephemeral phone capture. Visual is secondary background noise. Interactive element.
-          STRATEGIC ADAPTATION: Hook "${textToRender}". Vibe reflects "${emotionalVibe}".
-          RENDER TEXT: "${textToRender}" inside the sticker.
-          ${enhancer} ${safety}
-        `;
-    }
-
-    if (format === CreativeFormat.TWITTER_REPOST || format === CreativeFormat.HANDHELD_TWEET) {
-        return `
-          FORMAT ARCHETYPE: "The Viral Opinion".
-          CORE CONCEPT: "This person said what we were all thinking."
-          FORMAT ESSENCE: Sharp text statement. Social proof. Intellectual or controversial.
-          STRATEGIC ADAPTATION: Tweet body contains "${textToRender}". Grounded in physical world.
-          RENDER TEXT: "${textToRender}"
-          ${enhancer} ${safety}
-        `;
-    }
-
-    if (format === CreativeFormat.CHAT_CONVERSATION || format === CreativeFormat.DM_NOTIFICATION) {
-        return `
-          FORMAT ARCHETYPE: "The Leaked DM".
-          CORE CONCEPT: "Curiosity about private lives."
-          FORMAT ESSENCE: Screenshot of private 1-on-1 convo. Immediate, urgent, unscripted.
-          STRATEGIC ADAPTATION: Message bubble says: "${textToRender}".
-          RENDER TEXT: "${textToRender}"
-          ${enhancer} ${safety}
-        `;
-    }
-
-    if (format === CreativeFormat.PHONE_NOTES || format === CreativeFormat.REMINDER_NOTIF) {
-        return `
-          FORMAT ARCHETYPE: "The Inner Monologue".
-          CORE CONCEPT: "Inside my head."
-          FORMAT ESSENCE: Digital thoughts. Apple Notes or Lockscreen. Vulnerable.
-          STRATEGIC ADAPTATION: Note body text: "${textToRender}".
-          RENDER TEXT: "${textToRender}"
-          ${enhancer} ${safety}
-        `;
-    }
-
-    if (format === CreativeFormat.UGC_MIRROR) {
-        return `
-          FORMAT ARCHETYPE: "The Body Check".
-          CORE CONCEPT: "Showing progress/struggle."
-          FORMAT ESSENCE: First-person mirror selfie. Universal format for health/beauty.
-          STRATEGIC ADAPTATION: Confronting "${emotionalVibe}" in mirror. 
-          Overlay text: "${textToRender}".
-          RENDER TEXT: "${textToRender}"
-          ${enhancer} ${safety}
-        `;
-    }
-    
-    if (format === CreativeFormat.SOCIAL_COMMENT_STACK) {
-        return `
-          FORMAT ARCHETYPE: "The Comment Section War".
-          CORE CONCEPT: "Controversy breeds engagement."
-          FORMAT ESSENCE: A stack of social media comments overlaid on a blurred relevant video background.
-          STRATEGIC ADAPTATION: Top comment says: "${textToRender}".
-          RENDER TEXT: "${textToRender}"
-          ${enhancer} ${safety}
-        `;
-    }
-    
-    if (format === CreativeFormat.EDUCATIONAL_RANT) {
-        return `
-          FORMAT ARCHETYPE: "The Green Screen Rant".
-          CORE CONCEPT: "Stop doing this wrong."
-          FORMAT ESSENCE: Person speaking passionately in front of a news article or screenshot.
-          STRATEGIC ADAPTATION: Pointing at evidence titled "${textToRender}".
-          RENDER TEXT: "${textToRender}"
-          ${enhancer} ${safety}
-        `;
-    }
-
-    return getSpecificFormatPrompt(ctx);
-};
-
-/**
- * LEGACY / GENERAL FORMATS (Deterministic Fallback)
- */
-export const getSpecificFormatPrompt = (ctx: PromptContext): string => {
-    const { format, parsedAngle, enhancer, safety, project } = ctx;
-    const emotionalVibe = getEmotionalContext(ctx);
-    const mechanism = getMechanismContext(ctx);
-
-    // PRIORITY: Use embedded text (Creative Concept) if available, otherwise raw hook.
-    const textToRender = ctx.embeddedText || parsedAngle.cleanAngle;
-
-    if (format === CreativeFormat.GMAIL_UX) {
-        return `
-          FORMAT ARCHETYPE: "The Digital Voyeur".
-          FORMAT ESSENCE: Private mobile inbox screenshot. Intimate.
-          STRATEGIC ADAPTATION: Email Subject Line must be: "${textToRender}".
-          RENDER TEXT: "${textToRender}"
-          ${enhancer} ${safety}
-        `;
-    }
-
-    if (format === CreativeFormat.CARTOON) {
-        return `
-          FORMAT ARCHETYPE: "The Visual Fable".
-          FORMAT ESSENCE: Simple flat-style illustration. Friendly but deep.
-          STRATEGIC ADAPTATION: Speech bubble or Caption says: "${textToRender}".
-          RENDER TEXT: "${textToRender}"
-          ${safety}
-        `;
-    }
-
-    if (format === CreativeFormat.LONG_TEXT) {
-        return `
-          FORMAT ARCHETYPE: "The Lifestyle Feature".
-          FORMAT ESSENCE: High-end editorial design. Vogue/Kinfolk style.
-          STRATEGIC ADAPTATION: The MAIN HEADLINE on the page is: "${textToRender}".
-          RENDER TEXT: "${textToRender}"
-          ${safety}
-        `;
-    }
-
-    if (format === CreativeFormat.WHITEBOARD) {
-        return `
-          FORMAT ARCHETYPE: "The Napkin Explanation".
-          FORMAT ESSENCE: Rough handwritten explanation. "Secret" or "Lesson".
-          STRATEGIC ADAPTATION: Handwritten text on board says: "${textToRender}".
-          RENDER TEXT: "${textToRender}"
-          ${enhancer} ${safety}
-        `;
-    }
-
-    if (format === CreativeFormat.STICKY_NOTE_REALISM) {
-        return `
-          FORMAT ARCHETYPE: "The Physical Reminder".
-          FORMAT ESSENCE: Bright sticky note in real world. Urgent.
-          STRATEGIC ADAPTATION: Handwritten sharpie text on note: "${textToRender}".
-          RENDER TEXT: "${textToRender}"
-          ${enhancer} ${safety}
-        `;
-    }
-
-    if (format === CreativeFormat.PRESS_FEATURE) {
-        return `
-          FORMAT ARCHETYPE: "The Social Proof".
-          FORMAT ESSENCE: Reputable media outlet screenshot. Authority.
-          STRATEGIC ADAPTATION: Article Headline is: "${textToRender}".
-          RENDER TEXT: "${textToRender}"
-          ${enhancer} ${safety}
-        `;
-    }
-
-    if (format === CreativeFormat.US_VS_THEM || format === CreativeFormat.BEFORE_AFTER) {
-        return `
-          FORMAT ARCHETYPE: "The Binary Choice".
-          FORMAT ESSENCE: Strict visual separation. Contrast.
-          STRATEGIC ADAPTATION: Text Label says "${textToRender}".
-          RENDER TEXT: "${textToRender}"
-          ${enhancer} ${safety}
-        `;
-    }
-
-    if (format === CreativeFormat.MECHANISM_XRAY || format === CreativeFormat.BENEFIT_POINTERS) {
-        return `
-          FORMAT ARCHETYPE: "The Under-the-Hood Look".
-          FORMAT ESSENCE: Scientific/Medical visualization. Evidence.
-          STRATEGIC ADAPTATION: Label pointing to mechanism says: "${textToRender}".
-          RENDER TEXT: "${textToRender}"
-          ${safety}
-        `;
-    }
-
-    if (format === CreativeFormat.TESTIMONIAL_HIGHLIGHT || format === CreativeFormat.CAROUSEL_TESTIMONIAL) {
-        return `
-          FORMAT ARCHETYPE: "The Wall of Love".
-          FORMAT ESSENCE: Chaotic, overlapping pile of feedback. FOMO.
-          STRATEGIC ADAPTATION: Highlighted review quote: "${textToRender}".
-          RENDER TEXT: "${textToRender}"
-          ${enhancer} ${safety}
-        `;
-    }
-
-    if (format === CreativeFormat.LEAD_MAGNET_3D) {
-        return `
-          FORMAT ARCHETYPE: "The Tangible Value".
-          FORMAT ESSENCE: Digital file as premium physical object. Thud factor.
-          STRATEGIC ADAPTATION: Book Cover Title: "${textToRender}".
-          RENDER TEXT: "${textToRender}"
-          ${enhancer} ${safety}
-        `;
-    }
-    
-    return `
-      FORMAT ARCHETYPE: "The Adaptive Creative".
-      STRATEGIC ADAPTATION: Translate emotion "${emotionalVibe}" into scene.
-      Visual Text: "${textToRender}"
-      RENDER TEXT: "${textToRender}"
-      ${enhancer} ${safety}
-    `;
-};
-
-export const getDefaultPrompt = (ctx: PromptContext): string => {
-    return getSpecificFormatPrompt(ctx);
 };

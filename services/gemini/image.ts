@@ -9,14 +9,7 @@ import {
     parseAngle, 
     getSubjectFocus 
 } from "./imageUtils";
-import { generateTextInstruction, generateVisualText } from "./imageText";
-import { 
-    getUglyFormatPrompt, 
-    getNativeStoryPrompt, 
-    generateAIWrittenPrompt,
-    getSpecificFormatPrompt, 
-    getDefaultPrompt 
-} from "./imagePrompts";
+import { generateAIWrittenPrompt } from "./imagePrompts";
 
 export const generateCreativeImage = async (
   project: ProjectContext,
@@ -38,7 +31,9 @@ export const generateCreativeImage = async (
   const personaVisuals = getPersonaVisualContext(persona, parsedAngle.cleanAngle);
   
   const isUglyFormat = [
-    CreativeFormat.MS_PAINT
+    CreativeFormat.MS_PAINT,
+    CreativeFormat.UGLY_VISUAL,
+    CreativeFormat.MEME
   ].includes(format);
 
   const safety = getSafetyGuidelines(isUglyFormat);
@@ -71,21 +66,7 @@ export const generateCreativeImage = async (
   else if (isNativeStory) appliedEnhancer = ENHANCERS.UGC;
   else if (format === CreativeFormat.CAROUSEL_REAL_STORY) appliedEnhancer = ENHANCERS.UGC;
 
-  // Extract Text Instructions for the prompt writer (Legacy/Fallback info)
-  const textCopyInstruction = generateTextInstruction(format, parsedAngle, project);
-
-  // NEW: Generate optimized visual text using AI (Pre-Processing Step)
-  // This translates "The Bio-Lock Protocol" -> "Penyebab Perut Buncit" (if Indo) or "Why Diets Fail"
-  let optimizedVisualText = parsedAngle.cleanAngle;
-  try {
-      console.log("✍️ Generating Visual Copy...");
-      optimizedVisualText = await generateVisualText(project, format, parsedAngle);
-      console.log("✅ Visual Copy:", optimizedVisualText);
-  } catch (e) {
-      console.warn("Failed to generate visual text, using raw hook.", e);
-  }
-
-  // Extract Deep Context (Megaprompt Data) if present in the persona object (acting as meta bag)
+  // 1. PREPARE FULL CONTEXT (Megaprompt Data)
   const fullStoryContext = {
       story: persona.storyData,
       mechanism: persona.mechanismData,
@@ -94,27 +75,20 @@ export const generateCreativeImage = async (
 
   const ctx: PromptContext = {
       project, format, parsedAngle, visualScene, visualStyle, technicalPrompt, 
-      textCopyInstruction,
+      textCopyInstruction: "", // No longer used
       personaVisuals, moodPrompt, culturePrompt, subjectFocus, 
       enhancer: appliedEnhancer,
       safety,
       fullStoryContext,
-      embeddedText: optimizedVisualText // Pass the AI-adapted text here
+      // embeddedText is handled by the Unified Prompt Engine now
   };
 
-  let finalPrompt = "";
+  // 2. INVOKE UNIFIED PROMPT ENGINE
+  console.log("🧠 Invoking Unified Prompt Engine (Visual + Copy)...");
   
-  // LOGIC: Use AI Prompt Writer as the primary "Brain"
-  // Exception: Ugly formats are often better handled by simple, direct prompts
-  if (isUglyFormat) {
-      finalPrompt = getUglyFormatPrompt(ctx);
-  } else if (isNativeStory) {
-      finalPrompt = getNativeStoryPrompt(ctx);
-  } else {
-      // Use the AI Writer for complex/artistic formats
-      console.log("🧠 Invoking AI Prompt Engineer...");
-      finalPrompt = await generateAIWrittenPrompt(ctx);
-  }
+  // Single function for all formats.
+  // The AI acts as both Creative Director and Copywriter.
+  const finalPrompt = await generateAIWrittenPrompt(ctx);
 
   const parts: any[] = [{ text: finalPrompt }];
   
