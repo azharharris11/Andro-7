@@ -1,160 +1,134 @@
+
 import { ProjectContext, CreativeFormat } from "../../types";
 import { ParsedAngle } from "./imageUtils";
+import { ai } from "./client";
 
+/**
+ * OLD FUNCTION (DEPRECATED BUT KEPT FOR COMPATIBILITY)
+ * This is used by the Prompt Builder to give general instructions.
+ */
 export const generateTextInstruction = (format: CreativeFormat, parsedAngle: ParsedAngle, project: ProjectContext): string => {
-    const { cleanAngle } = parsedAngle;
-    const productContext = `${project.productName} (${project.productDescription})`;
+    // We now rely more on the AI-generated text below, but this serves as a fallback context.
+    return `
+    CONTEXT: The image must feature text related to "${parsedAngle.cleanAngle}".
+    PRODUCT: ${project.productName}.
+    FORMAT: ${format}.
+    `;
+};
 
+/**
+ * THE NEW AI COPYWRITER
+ * Generates the specific string that will be rendered INTO the image.
+ * This ensures the text matches the format's constraints (e.g. short for stickers, clickbait for email)
+ * while allowing natural expression without strict word limits.
+ */
+export const generateVisualText = async (
+    project: ProjectContext,
+    format: CreativeFormat,
+    parsedAngle: ParsedAngle
+): Promise<string> => {
+    const model = "gemini-2.5-flash";
+    const { cleanAngle } = parsedAngle;
     const isIndo = project.targetCountry?.toLowerCase().includes("indonesia");
-    const langInstruction = isIndo 
-        ? "LANGUAGE: BAHASA INDONESIA (Gaul/Casual). Do NOT use English." 
+
+    const langInstruction = isIndo
+        ? "LANGUAGE: BAHASA INDONESIA (Gaul/Casual/Slang). Do NOT use English unless it is common slang (like 'Skincare')."
         : `LANGUAGE: Native language of ${project.targetCountry || "English"}.`;
 
-    const baseCtx = `
-        PRODUCT: ${productContext}
-        INPUT HOOK: "${cleanAngle}"
+    let taskInstruction = `
+        TASK: Rewrite the following Marketing Hook into a text string suitable for the specific visual format.
+        ORIGINAL HOOK: "${cleanAngle}"
+        CONSTRAINT: Ensure the text fits naturally within the visual format (e.g. subject line size vs magazine headline size), but prioritize expression over brevity.
     `;
 
-    const FORBIDDEN = `FORBIDDEN WORDS: "Buy Now", "Click Here", "Sale". Keep it native.`;
-
-    switch (format) {
-        case CreativeFormat.GMAIL_UX:
-            return `
-            ${langInstruction}
+    // --- FORMAT SPECIFIC COPYWRITING RULES ---
+    if (format === CreativeFormat.GMAIL_UX) {
+        taskInstruction += `
             CONTEXT: Gmail Subject Line.
-            TASK: Write a 3-5 word lowercase subject line.
-            STYLE: Personal, vulnerable, clickbait.
-            EXAMPLES (If Indo): "maaf ya...", "jujurly...", "buka dong".
-            EXAMPLES (If English): "we messed up", "can i be honest?".
-            ${FORBIDDEN}
-            `;
-
-        case CreativeFormat.BIG_FONT:
-            return `
-            ${langInstruction}
-            CONTEXT: Poster Headline.
-            TASK: Write a 3-7 word SHOCKING statement.
-            STYLE: Aggressive, Direct.
-            EXAMPLES (If Indo): "STOP MAKAN GULA", "LUTUT KAMU BOHONG", "PENGHANCUR LEMAK".
-            EXAMPLES (If English): "STOP EATING SUGAR", "YOUR KNEES ARE LYING", "FAT BURNER".
-            ${FORBIDDEN}
-            `;
-
-        case CreativeFormat.LONG_TEXT:
-            return `
-            ${langInstruction}
-            CONTEXT: Editorial Magazine Headline.
-            TASK: Write a headline and 1 sentence sub-headline.
-            STYLE: Educational, "How-To", Authority.
-            EXAMPLE (If Indo): "Kenapa 80% Diet Gagal (Dan Solusinya)."
-            EXAMPLE (If English): "Why 80% of Diets Fail (And What To Do Instead)."
-            ${FORBIDDEN}
-            `;
-            
-        case CreativeFormat.WHITEBOARD:
-        case CreativeFormat.STICKY_NOTE_REALISM:
-            return `
-            ${langInstruction}
+            STYLE: Lowercase, personal, vulnerable, high curiosity. Looks like a friend or ex emailing you.
+            BAD: "Special Offer Inside"
+            GOOD: "we need to talk..." or "jujurly aku kecewa" or "my honest apology"
+        `;
+    } else if (format === CreativeFormat.LONG_TEXT) {
+        taskInstruction += `
+            CONTEXT: Magazine/Editorial Main Headline.
+            STYLE: High-end, authoritative, bold serif style.
+            EXAMPLE: "The Silent Killer In Your Kitchen."
+        `;
+    } else if (format === CreativeFormat.BIG_FONT) {
+        taskInstruction += `
+            CONTEXT: Impact Text Overlay (Poster).
+            STYLE: Shocking, direct, brutal. Use CAPS LOCK.
+            EXAMPLE: "YOUR KNEES LIE." or "STOP MAKAN GULA."
+        `;
+    } else if (format === CreativeFormat.UGLY_VISUAL || format === CreativeFormat.MS_PAINT) {
+        taskInstruction += `
+            CONTEXT: Meme text or ugly overlay.
+            STYLE: Blunt, funny, or brutally honest.
+            EXAMPLE: "Jerawat Batu?" or "Why am I like this?"
+        `;
+    } else if (format === CreativeFormat.STICKY_NOTE_REALISM || format === CreativeFormat.WHITEBOARD) {
+        taskInstruction += `
             CONTEXT: Handwritten Note.
-            TASK: Write 3-5 punchy words.
-            STYLE: Informal, Arrows, Underlines.
-            EXAMPLE (If Indo): "Cuma 5 menit!!", "Jangan lupa ini!", "TRIK RAHASIA ->".
-            EXAMPLE (If English): "Works in 5 mins!!", "Don't forget this!", "SECRET TRICK ->".
-            ${FORBIDDEN}
-            `;
-            
-        case CreativeFormat.UGLY_VISUAL:
-            return `
-            ${langInstruction}
-            CONTEXT: Text overlay on a bad photo.
-            TASK: A simple question or statement.
-            STYLE: Blunt.
-            EXAMPLE (If Indo): "Berantakan?", "Ini beneran ampuh.", "Jerawat ilang."
-            EXAMPLE (If English): "Disorganized?", "This actually works.", "Acne Relief."
-            ${FORBIDDEN}
-            `;
+            STYLE: Personal reminder, messy, urgent.
+            EXAMPLE: "Don't forget this!!" or "JANGAN LEWATKAN INI."
+        `;
+    } else if (format === CreativeFormat.TWITTER_REPOST || format === CreativeFormat.HANDHELD_TWEET) {
+        taskInstruction += `
+            CONTEXT: Viral Tweet Body.
+            STYLE: Controversial opinion or "Hot Take".
+            EXAMPLE: "Stop drinking coffee on an empty stomach if you want to live."
+        `;
+    } else if (format === CreativeFormat.CHAT_CONVERSATION || format === CreativeFormat.DM_NOTIFICATION) {
+        taskInstruction += `
+            CONTEXT: Private Message / Notification Preview.
+            STYLE: Intimate, urgent, friend-to-friend gossip.
+            EXAMPLE: "Omg did you see this??" or "Sumpah ini gila banget."
+        `;
+    } else if (format === CreativeFormat.IG_STORY_TEXT || format === CreativeFormat.STORY_QNA || format === CreativeFormat.STORY_POLL) {
+        taskInstruction += `
+            CONTEXT: Instagram Story Sticker (Poll/Question).
+            STYLE: Interactive question or provocative statement.
+            EXAMPLE: "Do you struggle with this?" or "Sering ngerasa gini gak?"
+        `;
+    } else if (format === CreativeFormat.MEME) {
+        taskInstruction += `
+            CONTEXT: Top Text of a Meme.
+            STYLE: Relatable situation description.
+            Start with: "Me when..." or "pov:..."
+        `;
+    } else if (format === CreativeFormat.REDDIT_THREAD) {
+        taskInstruction += `
+            CONTEXT: Reddit Thread Title.
+            STYLE: Confessional, shocking, "TrueOffMyChest" vibe.
+            EXAMPLE: "I finally realized why my acne never goes away."
+        `;
+    } else {
+        // Default Fallback
+        taskInstruction += `
+            CONTEXT: Text overlay on image.
+            STYLE: Punchy, clear headline.
+        `;
+    }
 
-        case CreativeFormat.IG_STORY_TEXT:
-        case CreativeFormat.STORY_QNA:
-        case CreativeFormat.STORY_POLL:
-            return `
-            ${langInstruction}
-            CONTEXT: Instagram Sticker Text.
-            TASK: A question for the audience.
-            STYLE: Engagement bait.
-            EXAMPLE (If Indo): "Udah pernah coba?", "Ya atau Tidak?", "Penyelamat kulitku."
-            EXAMPLE (If English): "Have you tried this?", "Yes or No?", "This saved my skin."
-            ${FORBIDDEN}
-            `;
-
-        case CreativeFormat.CHAT_CONVERSATION:
-            return `
-            ${baseCtx}
-            ${langInstruction}
-            TEXT COPY INSTRUCTION:
-            - CONTEXT: Private DM between friends (WhatsApp/iMessage)
-            - SENDER POV: Someone who JUST experienced the result
-            - TONE: Shocked, excited, informal, typo-prone
-            ${FORBIDDEN}
-            `;
+    const prompt = `
+        ROLE: Expert Direct Response Copywriter.
+        ${langInstruction}
+        ${taskInstruction}
         
-        case CreativeFormat.TWITTER_REPOST:
-        case CreativeFormat.HANDHELD_TWEET:
-            return `
-            ${baseCtx}
-            ${langInstruction}
-            TEXT COPY INSTRUCTION:
-            - CONTEXT: A viral tweet/X post.
-            - TONE: Opinionated, slightly controversial, "Hot Take".
-            - BAD: "This product is great."
-            - GOOD: "If you still do [Old Habit], you are playing life on hard mode."
-            ${FORBIDDEN}
-            `;
+        CRITICAL: Output ONLY the final text string. Do not use quotation marks. Do not explain.
+    `;
 
-        case CreativeFormat.PHONE_NOTES:
-            return `
-            ${baseCtx}
-            ${langInstruction}
-            TEXT COPY INSTRUCTION:
-            - CONTEXT: Personal "To-Do" list or Journal in Apple Notes.
-            - TONE: Raw, unfiltered, bullet points.
-            - TASK: Write 3 reminders related to the hook.
-            ${FORBIDDEN}
-            `;
-
-        case CreativeFormat.SOCIAL_COMMENT_STACK:
-            return `
-            ${baseCtx}
-            ${langInstruction}
-            TEXT COPY INSTRUCTION:
-            - CONTEXT: Social Media Comments Section.
-            - TASK: Generate 2 comments (Skeptic & Believer).
-            ${FORBIDDEN}
-            `;
-
-        case CreativeFormat.MEME:
-            return `
-            ${baseCtx}
-            ${langInstruction}
-            TEXT COPY INSTRUCTION:
-            - CONTEXT: Top/Bottom Text Impact Font Meme.
-            - TONE: Ironic, funny, relatable pain.
-            - TASK: "When you [Experience Pain] but then [Result of Hook]".
-            ${FORBIDDEN}
-            `;
-
-        case CreativeFormat.REMINDER_NOTIF:
-        case CreativeFormat.DM_NOTIFICATION:
-            return `
-            ${baseCtx}
-            ${langInstruction}
-            TEXT COPY INSTRUCTION:
-            - CONTEXT: Lock screen notification.
-            - TASK: A short, urgent reminder.
-            ${FORBIDDEN}
-            `;
-
-        default:
-             return `TEXT COPY INSTRUCTION: Include the text "${parsedAngle.cleanAngle}" clearly in the image. ${langInstruction} ${FORBIDDEN}`;
+    try {
+        const response = await ai.models.generateContent({
+            model,
+            contents: prompt
+        });
+        
+        // Cleanup: Remove quotes if AI added them
+        return response.text?.trim()?.replace(/^"|"$/g, '') || cleanAngle;
+    } catch (e) {
+        console.error("Visual Text Gen Failed", e);
+        return cleanAngle; // Fallback to original hook
     }
 };

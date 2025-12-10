@@ -1,4 +1,3 @@
-
 import { ProjectContext, CreativeFormat, GenResult, MarketAwareness } from "../../types";
 import { ai } from "./client";
 import { 
@@ -10,7 +9,7 @@ import {
     parseAngle, 
     getSubjectFocus 
 } from "./imageUtils";
-import { generateTextInstruction } from "./imageText";
+import { generateTextInstruction, generateVisualText } from "./imageText";
 import { 
     getUglyFormatPrompt, 
     getNativeStoryPrompt, 
@@ -72,8 +71,19 @@ export const generateCreativeImage = async (
   else if (isNativeStory) appliedEnhancer = ENHANCERS.UGC;
   else if (format === CreativeFormat.CAROUSEL_REAL_STORY) appliedEnhancer = ENHANCERS.UGC;
 
-  // Extract Text Instructions for the prompt writer
+  // Extract Text Instructions for the prompt writer (Legacy/Fallback info)
   const textCopyInstruction = generateTextInstruction(format, parsedAngle, project);
+
+  // NEW: Generate optimized visual text using AI (Pre-Processing Step)
+  // This translates "The Bio-Lock Protocol" -> "Penyebab Perut Buncit" (if Indo) or "Why Diets Fail"
+  let optimizedVisualText = parsedAngle.cleanAngle;
+  try {
+      console.log("✍️ Generating Visual Copy...");
+      optimizedVisualText = await generateVisualText(project, format, parsedAngle);
+      console.log("✅ Visual Copy:", optimizedVisualText);
+  } catch (e) {
+      console.warn("Failed to generate visual text, using raw hook.", e);
+  }
 
   // Extract Deep Context (Megaprompt Data) if present in the persona object (acting as meta bag)
   const fullStoryContext = {
@@ -88,17 +98,13 @@ export const generateCreativeImage = async (
       personaVisuals, moodPrompt, culturePrompt, subjectFocus, 
       enhancer: appliedEnhancer,
       safety,
-      // Pass deep context to AI Prompt Writer
       fullStoryContext,
-      embeddedText: parsedAngle.cleanAngle // Or specific instruction text
+      embeddedText: optimizedVisualText // Pass the AI-adapted text here
   };
 
   let finalPrompt = "";
   
-  // LOGIC CHANGE: Use AI Prompt Writer as the primary "Brain"
-  // This allows the text model to synthesize the Story + Mechanism + Format into a cohesive prompt
-  // instead of relying on hardcoded string templates.
-  
+  // LOGIC: Use AI Prompt Writer as the primary "Brain"
   // Exception: Ugly formats are often better handled by simple, direct prompts
   if (isUglyFormat) {
       finalPrompt = getUglyFormatPrompt(ctx);
