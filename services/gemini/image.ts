@@ -80,16 +80,23 @@ export const generateCreativeImage = async (
   };
 
   let finalPrompt = "";
-  if (isUglyFormat) {
-      finalPrompt = getUglyFormatPrompt(ctx);
-  } else if (isNativeStory) {
-      finalPrompt = getNativeStoryPrompt(ctx);
+  
+  // Prioritize technicalPrompt result from Creative Director if detailed enough
+  // This ensures the visual translation logic from creative.ts is respected
+  if (technicalPrompt && technicalPrompt.length > 50 && !isUglyFormat) {
+      finalPrompt = `${technicalPrompt} ${ctx.enhancer} ${ctx.safety}`;
   } else {
-      const specificPrompt = getSpecificFormatPrompt(ctx);
-      if (specificPrompt) {
-          finalPrompt = specificPrompt;
+      if (isUglyFormat) {
+          finalPrompt = getUglyFormatPrompt(ctx);
+      } else if (isNativeStory) {
+          finalPrompt = getNativeStoryPrompt(ctx);
       } else {
-          finalPrompt = getDefaultPrompt(ctx);
+          const specificPrompt = getSpecificFormatPrompt(ctx);
+          if (specificPrompt) {
+              finalPrompt = specificPrompt;
+          } else {
+              finalPrompt = getDefaultPrompt(ctx);
+          }
       }
   }
 

@@ -1,4 +1,3 @@
-
 import { Type } from "@google/genai";
 import { ProjectContext, GenResult, StoryOption, BigIdeaOption, MechanismOption, HVCOOption, MafiaOffer, LanguageRegister } from "../../types";
 import { ai, extractJSON } from "./client";
@@ -71,6 +70,7 @@ export const generateMafiaOffer = async (project: ProjectContext): Promise<GenRe
     Mafia: "We will double your leads in 90 days or we work for FREE until we do. Plus, get our $2k Audit Script as a bonus."
     
     ${langInstruction}
+    **CRITICAL: Output 'headline', 'valueStack', 'riskReversal', 'scarcity' in the Target Language defined above. Do NOT output English.**
 
     OUTPUT JSON:
     {
@@ -127,7 +127,7 @@ export const generateBigIdeas = async (project: ProjectContext, story: StoryOpti
     Big Idea: "It's not your willpower, it's your gut biome diversity." (Shift blame -> New mechanism).
     
     ${langInstruction}
-    **CRITICAL: Write the 'Headline', 'Concept', and 'TargetBelief' in the Target Language.**
+    **CRITICAL: Write the 'headline', 'concept', and 'targetBelief' in the Target Language defined above. Do NOT output English.**
 
     OUTPUT JSON:
     - headline: The Big Idea Statement.
@@ -235,7 +235,7 @@ export const generateHooks = async (project: ProjectContext, bigIdea: BigIdeaOpt
     Mechanism: ${mechanism.scientificPseudo} (${mechanism.ums})
     
     ${langInstruction}
-    **CRITICAL: Write the hooks in the Target Language.**
+    **CRITICAL: Write the hooks in the Target Language defined above. Do NOT output English.**
 
     RULES:
     1. Use "Shock & Awe".
@@ -298,7 +298,7 @@ export const generateAngles = async (project: ProjectContext, personaName: strin
     - TIER 3 (Sprint Isolation): A simple iteration or direct offer.
     
     ${langInstruction}
-    **CRITICAL: Write the 'headline' and 'hook' and 'painPoint' in the Target Language.**
+    **CRITICAL: Write the 'headline' and 'hook' and 'painPoint' in the Target Language defined above. Do NOT output English.**
     
     OUTPUT:
     Return ONLY the Top 3 High-Potential Insights (Ensure at least 1 is a NEGATIVE ANGLE).
@@ -357,7 +357,7 @@ export const generateHVCOIdeas = async (project: ProjectContext, painPoint: stri
     3. Format: PDF Guide, Cheat Sheet, or Video Training.
     
     ${langInstruction}
-    **CRITICAL: Write the 'title' and 'hook' in the Target Language.**
+    **CRITICAL: Write the 'title' and 'hook' in the Target Language defined above. Do NOT output English.**
 
     EXAMPLE:
     Product: SEO Agency.

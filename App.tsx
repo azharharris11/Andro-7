@@ -312,24 +312,19 @@ const App: React.FC = () => {
       } else if (parentNode.type === NodeType.HOOK_NODE && parentNode.hookData) {
           // --- SURGICAL FIX: HOOK VISUAL CONTEXT ---
           angleToUse = parentNode.hookData;
-
-          // --- LOGIC FIX: Native Format Context Translation ---
-          // If format is Native (Chat, Story, Notes), tell AI to translate the context, not pass-through.
-          // Note: We need to check the format inside the loop, so here we just setup general context
-          // But since deepContext is global for the batch, we might need per-format logic.
-          // For simplicity in this structure, we pass a flexible instruction.
-          
           const visualCheatSheet = parentNode.mechanismData?.ums || "Show the problem vividly";
-          
-          // We will refine deepContext inside the loop if needed, but for now we set a robust base
           deepContext = ` [STRATEGY CONTEXT: The Hook is "${parentNode.hookData}". BUT the visual must depict THIS ACTION: "${visualCheatSheet}". Do not just visualize the text of the hook, visualize the ACTION behind it.]`;
       
       } else if (parentNode.type === NodeType.BIG_IDEA_NODE && parentNode.bigIdeaData) {
-          angleToUse = parentNode.bigIdeaData.headline;
-          deepContext = ` [STRATEGY CONTEXT: The Big Idea is "${parentNode.bigIdeaData.headline}". Concept: ${parentNode.bigIdeaData.concept}. Target Belief Shift: ${parentNode.bigIdeaData.targetBelief}]`;
+          // FIX: Use Concept instead of Headline for visuals
+          angleToUse = `Show concept: ${parentNode.bigIdeaData.concept}`;
+          deepContext = ` [STRATEGY CONTEXT: The Big Idea is "${parentNode.bigIdeaData.headline}". But for the image, visualize the CONCEPT: ${parentNode.bigIdeaData.concept}. Shift belief: ${parentNode.bigIdeaData.targetBelief}]`;
+      
       } else if (parentNode.type === NodeType.MECHANISM_NODE && parentNode.mechanismData) {
-          angleToUse = parentNode.mechanismData.scientificPseudo;
-           deepContext = ` [STRATEGY CONTEXT: The Mechanism is "${parentNode.mechanismData.scientificPseudo}". UMP: ${parentNode.mechanismData.ump}. UMS: ${parentNode.mechanismData.ums}]`;
+          // FIX: Use UMS action instead of Scientific Name
+          angleToUse = `Show the action of: ${parentNode.mechanismData.ums}`; 
+          deepContext = ` [STRATEGY CONTEXT: Do NOT visualize the text "${parentNode.mechanismData.scientificPseudo}". Instead, visualize the physical process: ${parentNode.mechanismData.ums}]`;
+      
       } else if (parentNode.type === NodeType.HVCO_NODE && parentNode.hvcoData) {
           angleToUse = parentNode.hvcoData.title;
           deepContext = ` [STRATEGY CONTEXT: Lead Magnet Title "${parentNode.hvcoData.title}". Hook: "${parentNode.hvcoData.hook}"]`;

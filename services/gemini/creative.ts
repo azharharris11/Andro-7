@@ -1,4 +1,3 @@
-
 import { Type } from "@google/genai";
 import { ProjectContext, CreativeFormat, AdCopy, CreativeConcept, GenResult, StoryOption, BigIdeaOption, MechanismOption, MarketAwareness, LanguageRegister } from "../../types";
 import { ai, extractJSON } from "./client";
@@ -91,6 +90,13 @@ export const generateCreativeConcept = async (
     *   If 'Long Text' or 'Story' or 'IG Story Text Overlay': You MUST describe a vertical, candid, authentic shot.
     *   **CRITICAL NEGATIVE SPACE RULE:** For 'IG Story Text Overlay', the subject MUST be positioned to leave ample "Negative Space" (e.g., sky, blank wall, car ceiling) where text can be overlaid. Do not fill the frame with details.
     *   If 'Ugly Visual' or 'Pattern Interrupt': Describe a chaotic, low-fidelity scene.
+
+    **CRITICAL VISUAL TRANSLATION RULE:**
+    You are translating a "Marketing Concept" into a "Real Life Scene".
+    - IF Input is "The Bio-Lock Protocol" -> VISUALIZE: A closeup of a secure seal, or a biological diagram, or a lock closing. DO NOT put the text "Bio-Lock" on a wall.
+    - IF Input is "Stop wasting money" -> VISUALIZE: A hand throwing cash into a trash can, or burning a receipt.
+    - **NEVER** just describe "A person thinking about [Input]". That is lazy.
+    - **CONGRUENCE CHECK:** The image must prove the headline is true without using words.
     
     **TASK:**
     Create a concept that VIOLATES the expectations of the feed.
@@ -149,7 +155,7 @@ export const generateAdCopy = async (
   project: ProjectContext, 
   persona: any, 
   concept: CreativeConcept,
-  angle: string,
+  angle: string, 
   format?: CreativeFormat,
   isHVCOFlow: boolean = false,
   mechanism?: MechanismOption
@@ -279,6 +285,11 @@ export const generateAdCopy = async (
     7. **BIG IDEA RULE:**
        - If the Input Strategy says "The Shift:...", write a 'Pattern Interrupt' statement.
        - Challenge the status quo. "Stop doing X, Start doing Y."
+
+    8. **LANGUAGE ENFORCEMENT (ABSOLUTE):**
+       - You detected the target language as: ${isIndo ? "BAHASA INDONESIA" : "ENGLISH"}.
+       - EVEN IF the input data (Product Name, Angle, Description) is in English, YOU MUST WRITE THE OUTPUT IN ${isIndo ? "BAHASA INDONESIA" : "THE TARGET LANGUAGE"}.
+       - Do NOT mix languages unless it's specific slang defined in the tone.
     
     ${toneInstruction}
     ${formatRule}
