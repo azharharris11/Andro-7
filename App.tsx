@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import Sidebar from './components/Sidebar';
@@ -207,9 +206,9 @@ const App: React.FC = () => {
           }
       }
 
-      if (action === 'generate_hooks' && node.mechanismData && node.bigIdeaData) {
+      if (action === 'generate_hooks' && node.mechanismData && node.bigIdeaData && node.storyData) {
            handleUpdateNode(nodeId, { isLoading: true });
-           const result = await GeminiService.generateHooks(project, node.bigIdeaData, node.mechanismData);
+           const result = await GeminiService.generateHooks(project, node.bigIdeaData, node.mechanismData, node.storyData);
            handleUpdateNode(nodeId, { isLoading: false });
 
            if (result.data) {

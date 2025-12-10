@@ -222,7 +222,12 @@ export const generateMechanisms = async (project: ProjectContext, bigIdea: BigId
   };
 };
 
-export const generateHooks = async (project: ProjectContext, bigIdea: BigIdeaOption, mechanism: MechanismOption): Promise<GenResult<string[]>> => {
+export const generateHooks = async (
+  project: ProjectContext, 
+  bigIdea: BigIdeaOption, 
+  mechanism: MechanismOption,
+  story: StoryOption
+): Promise<GenResult<string[]>> => {
   const model = "gemini-2.5-flash";
   const register = project.languageRegister || LanguageRegister.CASUAL;
   const langInstruction = getLanguageInstruction(project.targetCountry || "USA", register);
@@ -230,9 +235,16 @@ export const generateHooks = async (project: ProjectContext, bigIdea: BigIdeaOpt
   const prompt = `
     ROLE: Viral Social Media Editor / Direct Response Copywriter.
     
-    TASK: Write 5 "Thumb-Stopping" Hooks based on:
-    Big Idea: ${bigIdea.headline}
-    Mechanism: ${mechanism.scientificPseudo} (${mechanism.ums})
+    INPUT CONTEXT:
+    1. STORY LEAD: "${story.narrative}"
+    2. DOMINANT EMOTION: "${story.emotionalTheme}"
+    3. BIG IDEA: "${bigIdea.headline}"
+    4. UMP (The Enemy): "${mechanism.ump}"
+    5. MECHANISM: "${mechanism.scientificPseudo}"
+    
+    TASK: 
+    Generate 10-15 viral hooks that specifically channel the "${story.emotionalTheme}" emotion.
+    The hook must bridge the gap between the User's Story and the Mechanism.
     
     ${langInstruction}
     **CRITICAL: Write the hooks in the Target Language defined above. Do NOT output English.**

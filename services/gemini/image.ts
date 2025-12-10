@@ -14,6 +14,7 @@ import { generateTextInstruction } from "./imageText";
 import { 
     getUglyFormatPrompt, 
     getNativeStoryPrompt, 
+    generateAIWrittenPrompt,
     getSpecificFormatPrompt, 
     getDefaultPrompt 
 } from "./imagePrompts";
@@ -71,33 +72,42 @@ export const generateCreativeImage = async (
   else if (isNativeStory) appliedEnhancer = ENHANCERS.UGC;
   else if (format === CreativeFormat.CAROUSEL_REAL_STORY) appliedEnhancer = ENHANCERS.UGC;
 
+  // Extract Text Instructions for the prompt writer
+  const textCopyInstruction = generateTextInstruction(format, parsedAngle, project);
+
+  // Extract Deep Context (Megaprompt Data) if present in the persona object (acting as meta bag)
+  const fullStoryContext = {
+      story: persona.storyData,
+      mechanism: persona.mechanismData,
+      bigIdea: persona.bigIdeaData
+  };
+
   const ctx: PromptContext = {
       project, format, parsedAngle, visualScene, visualStyle, technicalPrompt, 
-      textCopyInstruction: generateTextInstruction(format, parsedAngle, project),
+      textCopyInstruction,
       personaVisuals, moodPrompt, culturePrompt, subjectFocus, 
       enhancer: appliedEnhancer,
-      safety
+      safety,
+      // Pass deep context to AI Prompt Writer
+      fullStoryContext,
+      embeddedText: parsedAngle.cleanAngle // Or specific instruction text
   };
 
   let finalPrompt = "";
   
-  // Prioritize technicalPrompt result from Creative Director if detailed enough
-  // This ensures the visual translation logic from creative.ts is respected
-  if (technicalPrompt && technicalPrompt.length > 50 && !isUglyFormat) {
-      finalPrompt = `${technicalPrompt} ${ctx.enhancer} ${ctx.safety}`;
+  // LOGIC CHANGE: Use AI Prompt Writer as the primary "Brain"
+  // This allows the text model to synthesize the Story + Mechanism + Format into a cohesive prompt
+  // instead of relying on hardcoded string templates.
+  
+  // Exception: Ugly formats are often better handled by simple, direct prompts
+  if (isUglyFormat) {
+      finalPrompt = getUglyFormatPrompt(ctx);
+  } else if (isNativeStory) {
+      finalPrompt = getNativeStoryPrompt(ctx);
   } else {
-      if (isUglyFormat) {
-          finalPrompt = getUglyFormatPrompt(ctx);
-      } else if (isNativeStory) {
-          finalPrompt = getNativeStoryPrompt(ctx);
-      } else {
-          const specificPrompt = getSpecificFormatPrompt(ctx);
-          if (specificPrompt) {
-              finalPrompt = specificPrompt;
-          } else {
-              finalPrompt = getDefaultPrompt(ctx);
-          }
-      }
+      // Use the AI Writer for complex/artistic formats
+      console.log("🧠 Invoking AI Prompt Engineer...");
+      finalPrompt = await generateAIWrittenPrompt(ctx);
   }
 
   const parts: any[] = [{ text: finalPrompt }];

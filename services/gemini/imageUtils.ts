@@ -23,6 +23,14 @@ export interface PromptContext {
     subjectFocus: string;
     enhancer: string;
     safety?: string;
+    
+    // NEW: Deep Context for AI Prompt Writer
+    fullStoryContext?: {
+        story?: any;
+        bigIdea?: any;
+        mechanism?: any;
+    };
+    embeddedText?: string;
 }
 
 export const getSafetyGuidelines = (isUglyOrMeme: boolean): string => {

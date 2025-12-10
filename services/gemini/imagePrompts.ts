@@ -1,319 +1,328 @@
 
 import { CreativeFormat } from "../../types";
 import { PromptContext, ENHANCERS, getSafetyGuidelines } from "./imageUtils";
+import { ai } from "./client";
 
-export const getUglyFormatPrompt = (ctx: PromptContext): string => {
-    const { format, project, visualScene, parsedAngle, moodPrompt, culturePrompt, enhancer } = ctx;
-    const safety = getSafetyGuidelines(true);
-
-    if (format === CreativeFormat.MS_PAINT) {
-        return `A crude, badly drawn MS Paint illustration related to ${project.productName}. Stick figures, comic sans text, bright primary colors. Looks like a child or amateur drew it to explain: "${parsedAngle.cleanAngle}". Authentically bad internet meme style. ${safety}`;
-    } 
+/**
+ * HELPER: Extracts the emotional vibe from the strategic context.
+ */
+const getEmotionalContext = (ctx: PromptContext): string => {
+    const storyEmotion = ctx.fullStoryContext?.story?.emotionalTheme;
+    const hookAngle = ctx.parsedAngle.cleanAngle;
     
-    return `A visually raw, unpolished, low-quality image. ${ctx.subjectFocus}. Action: ${visualScene}. ${enhancer} ${culturePrompt} ${moodPrompt} ${safety}`;
+    if (storyEmotion) return storyEmotion;
+    
+    if (/sad|lonely|tired|exhausted/i.test(hookAngle)) return "Melancholic & Exhausted";
+    if (/angry|hate|stop|worst/i.test(hookAngle)) return "Frustrated & Aggressive";
+    if (/hope|fix|finally/i.test(hookAngle)) return "Hopeful & Relieved";
+    
+    return "Urgent & Visceral";
 };
 
-export const getNativeStoryPrompt = (ctx: PromptContext): string => {
-    const { format, project, visualScene, parsedAngle, textCopyInstruction, moodPrompt, culturePrompt, personaVisuals, enhancer } = ctx;
-    const safety = getSafetyGuidelines(false);
+/**
+ * HELPER: Extracts the mechanism logic.
+ */
+const getMechanismContext = (ctx: PromptContext): string => {
+    return ctx.fullStoryContext?.mechanism?.scientificPseudo || "The Scientific Solution";
+};
 
-    if (format === CreativeFormat.EDUCATIONAL_RANT) {
-        return `
-        EDUCATIONAL RANT FORMAT (TikTok/Reels Style):
-        
-        CAMERA SETUP:
-        - POV: Direct-to-camera, person talking passionately
-        - FRAMING: Vertical 9:16, face takes up 60% of frame
-        - BACKGROUND: Green screen showing a screenshot of a news article/study/graph about "${parsedAngle.cleanAngle}"
-        
-        PERSON'S EXPRESSION:
-        - Emotion: Passionate, frustrated, "I need to tell you this" energy
-        - Gestures: Hands moving emphatically, pointing at screen occasionally
-        - NOT smiling - this is serious educational content
-        
-        UI OVERLAYS:
-        - Top text: "Why is nobody talking about this??" (White text, black outline)
-        - Captions: Auto-generated style captions at bottom
-        - Duration indicator: "0:15" in corner
-        
-        VIBE: Feels like a concerned friend dropping truth bombs, not a brand ad
-        ${ENHANCERS.UGC} ${safety}
-        `;
-    }
+/**
+ * AI PROMPT WRITER
+ * Uses the LLM to synthesize strategy into a high-fidelity image prompt.
+ */
+export const generateAIWrittenPrompt = async (ctx: PromptContext): Promise<string> => {
+    const { 
+        project, format, parsedAngle, visualScene, 
+        fullStoryContext, embeddedText, enhancer, safety 
+    } = ctx;
 
-    if (format === CreativeFormat.CHAT_CONVERSATION) {
-        const isIndo = project.targetCountry?.toLowerCase().includes("indonesia");
-        const appStyle = isIndo ? "WhatsApp UI (Green bubbles)" : "iMessage UI (Blue bubbles)";
-        const sender = isIndo ? "Sayang" : "Bestie";
+    const story = fullStoryContext?.story;
+    const mechanism = fullStoryContext?.mechanism;
+    const bigIdea = fullStoryContext?.bigIdea;
 
-        return `
-          A close-up photo of a hand holding a smartphone displaying a chat conversation.
-          App Style: ${appStyle}.
-          Sender Name: "${sender}".
-          ${textCopyInstruction}
-          Background: Blurry motion (walking on street or inside car).
-          Lighting: Screen glow on thumb.
-          Make the UI look 100% authentic to the app.
-          ${enhancer} ${safety}
-        `;
-    } 
+    const systemPrompt = `
+    ROLE: Expert AI Prompt Engineer for Midjourney/Flux/Gemini.
     
-    return `
-        A brutally authentic, amateur photo taken from a first-person perspective (POV) or candid angle.
-        SCENE ACTION: ${visualScene}.
-        ${personaVisuals}
-        Lighting: Bad overhead lighting or harsh flash (Direct Flash Photography).
-        Quality: Slightly grainy, iPhone photo quality.
-        ${textCopyInstruction}
-        ${culturePrompt} ${moodPrompt} ${safety}
+    INPUT CONTEXT (The Strategy):
+    - Product: ${project.productName} (${project.productDescription})
+    - Target Audience: ${project.targetAudience} in ${project.targetCountry}
+    - Key Emotion/Pain: ${story?.emotionalTheme || getEmotionalContext(ctx)}
+    - The Logic (Mechanism): ${mechanism?.scientificPseudo || "N/A"} (${mechanism?.ums || "N/A"})
+    - The Shift (Big Idea): ${bigIdea?.concept || "N/A"}
+    - Marketing Hook: "${parsedAngle.cleanAngle}"
+    
+    VISUAL GOAL (The Container):
+    - Format: ${format}
+    - Base Scene Description: ${visualScene}
+    - Required Text on Image: "${embeddedText || ''}"
+    
+    TASK:
+    Write a HIGH-FIDELITY IMAGE GENERATION PROMPT based on the inputs above.
+    Synthesize the strategic context into visual descriptions (lighting, texture, angle, subject action).
+    
+    CRITICAL RULES:
+    1. Do NOT explain the strategy. Just write the prompt description.
+    2. Incorporate the "Mechanism" logic into the visual details (e.g. if mechanism is "glitch", add "glitch art style").
+    3. Specify the camera angle, lighting, and film stock to match the "Key Emotion".
+    4. If "Required Text" is present, use the instruction: 'RENDER TEXT: "..."'
+    5. Append these technical modifiers at the end: "${enhancer}"
+    6. Adhere to safety guidelines: "${safety}"
+    
+    OUTPUT FORMAT:
+    Return ONLY the raw prompt string. No "Here is the prompt" text.
     `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash", 
+            contents: systemPrompt
+        });
+        
+        const finalPrompt = response.text?.trim();
+        return finalPrompt || `${visualScene} ${enhancer} ${safety}`;
+
+    } catch (e) {
+        console.error("Prompt Generation Failed", e);
+        return `${visualScene} ${enhancer} ${safety}`; 
+    }
 };
 
-export const getSpecificFormatPrompt = (ctx: PromptContext): string => {
-    const { format, project, parsedAngle, enhancer, safety } = ctx;
+/**
+ * UGLY FORMATS (Deterministic)
+ */
+export const getUglyFormatPrompt = (ctx: PromptContext): string => {
+    const { format, parsedAngle, safety } = ctx;
+    const emotionalVibe = getEmotionalContext(ctx);
 
-    // 1. BIG FONTS (Screenshot 1 & 12)
     if (format === CreativeFormat.BIG_FONT) {
         return `
-          STYLE: Brutalist Typography Ad.
-          
-          OPTION A (Body Overlay):
-          A close-up photo of a human body part related to pain (e.g., knee, back, stomach).
-          OVERLAY: The text "${parsedAngle.cleanAngle}" is 'tattooed' or digitally overlaid directly onto the skin in black font.
-          
-          OPTION B (The List):
-          A plain white or bright yellow background.
-          TEXT: A massive, bold, black list of problems.
-          HEADLINE: "${parsedAngle.cleanAngle}" takes up 80% of the screen.
-          
-          Vibe: Shocking, Direct, aggressive.
+          FORMAT ARCHETYPE: "The Brutalist Typography".
+          CORE CONCEPT: "If you shout loud enough, they will look."
+          FORMAT ESSENCE: A MASSIVE, UNAVOIDABLE STATEMENT. Typography dominates 80-90% of space.
+          STRATEGIC ADAPTATION: The Hook "${parsedAngle.cleanAngle}" is the hero. Channel "${emotionalVibe}" into font weight.
           ${safety}
         `;
     }
 
-    // 2. GMAIL/LETTER ADS (Screenshot 2 & 10)
-    if (format === CreativeFormat.GMAIL_UX) {
+    if (format === CreativeFormat.UGLY_VISUAL || format === CreativeFormat.MS_PAINT) {
         return `
-          A realistic screenshot of a mobile Email Inbox (Gmail/iOS Mail).
-          
-          VISUAL:
-          A list of emails. The top email is highlighted/opened.
-          SENDER: "${project.productName} Founder" or "Sarah from ${project.productName}".
-          SUBJECT LINE: Bold, lowercase, clickbait style. E.g., "we messed up...", "personal update", or "${parsedAngle.cleanAngle}".
-          PREVIEW TEXT: "I wanted to personally reach out about..."
-          
-          VIBE: Private, Exclusive, "Oops" email.
-          ${enhancer} ${safety}
-        `;
-    }
-
-    // 3. THE LONG TEXT / EDITORIAL (Screenshot 3)
-    if (format === CreativeFormat.LONG_TEXT) {
-        return `
-          An aesthetic "Magazine Page" or "Editorial Layout" (9:16 Vertical).
-          
-          LAYOUT STRUCTURE:
-          - TOP HALF: A high-quality photo of a person experiencing the emotion of: "${parsedAngle.cleanAngle}".
-          - BOTTOM HALF: A solid color block (Cream, Sage Green, or Soft Yellow).
-          - CONTENT: A bold serif headline followed by 2-3 short, readable paragraphs explaining the story.
-          
-          STYLE: Looks like a page from a modern lifestyle magazine or a blog screenshot. Clean, serif fonts.
+          FORMAT ARCHETYPE: "The Authentic Amateur".
+          CORE CONCEPT: "It looks so bad, it must be real."
+          FORMAT ESSENCE: Reject professional design. Embrace chaos, clutter, and bad lighting. Looks like a mistake.
+          STRATEGIC ADAPTATION: Show the "${emotionalVibe}" of the problem without filter.
           ${safety}
         `;
     }
 
-    // 4. UGLY VISUAL (Screenshot 4 & 11)
-    if (format === CreativeFormat.UGLY_VISUAL) {
-        return `
-          A deliberately "Bad" or Amateur Photo.
-          
-          SCENE: A messy, cluttered room (bedroom or kitchen).
-          LIGHTING: Harsh direct flash photography (looks like a 2010 digicam).
-          TEXT OVERLAY: A generic sans-serif text (Arial) placed randomly on the image reading "${parsedAngle.cleanAngle}".
-          
-          VIBE: "I don't care about aesthetics, I care about results."
-          CRITICAL: Do NOT make it pretty. Make it look raw and real.
-          ${safety}
-        `;
-    }
-
-    // 5. INSTAGRAM UX (Screenshot 5 & 14)
-    if (format === CreativeFormat.IG_STORY_TEXT || format === CreativeFormat.STORY_QNA || format === CreativeFormat.STORY_POLL) {
-        return `
-          A POV photo formatted for Instagram Story.
-          
-          VISUAL: Hand holding the product (${project.productName}) OR a selfie of a person pointing at text.
-          UI ELEMENT (CRITICAL):
-          Superimpose a realistic Instagram Sticker:
-          - "Ask Me Anything" box with question: "Does it actually work?"
-          - OR a "Poll" sticker: "Yes / No".
-          - OR a text block with a highlighted background.
-          
-          TEXT CONTENT: "${parsedAngle.cleanAngle}".
-          ${enhancer} ${safety}
-        `;
-    }
-
-    // 6. CARTOONIC (Screenshot 6)
-    if (format === CreativeFormat.CARTOON) {
-        return `
-          A simple 4-panel comic strip or specific illustration.
-          
-          STYLE: "Corporate Memphis" or Simple Line Art (Sunday paper style).
-          PANELS:
-          1. Panel 1: Person struggling with "${parsedAngle.cleanAngle}".
-          2. Panel 2: Person trying a wrong solution.
-          3. Panel 3: Person finding ${project.productName}.
-          4. Panel 4: Happy result.
-          
-          OR: A diagram comparing "Your Brain on Stress" vs "Your Brain on ${project.productName}".
-          ${safety}
-        `;
-    }
-
-    // 7. WHITEBOARD ADS (Screenshot 8)
-    if (format === CreativeFormat.WHITEBOARD) {
-        return `
-          A vertical photo of a Whiteboard / Dry Erase Board.
-          
-          ACTION:
-          A hand is holding the product (${project.productName}) in the foreground, partly blocking the board.
-          
-          BOARD CONTENT:
-          Handwritten marker text (Red or Blue) explaining "${parsedAngle.cleanAngle}" with arrows or a simple graph.
-          
-          VIBE: "Let me explain the science", Teacher/Professor vibe.
-          ${enhancer} ${safety}
-        `;
-    }
-
-    // 8. STICKY NOTES / OG ADS (Screenshot 9)
-    if (format === CreativeFormat.STICKY_NOTE_REALISM) {
-        return `
-          A POV photo of handwritten Post-it notes.
-          
-          PLACEMENT (Choose one):
-          - Stuck on a Bathroom Mirror.
-          - Stuck on a Laptop Screen.
-          - Placed on a messy Bed sheet next to pills/supplements.
-          
-          CONTENT:
-          Handwritten sharpie text: "${parsedAngle.cleanAngle}".
-          Draw a simple arrow or underline for emphasis.
-          
-          VIBE: Reminder, Life hack, Personal note.
-          ${enhancer} ${safety}
-        `;
-    }
-
-    // 9. MEME ADS (Screenshot 13)
     if (format === CreativeFormat.MEME) {
         return `
-          A classic internet meme format.
-          
-          STYLE:
-          Standard Meme Layout: Image in center, White bar at top with black text.
-          IMAGE: A funny/relatable reaction image related to "${parsedAngle.cleanAngle}".
-          CAPTION: "Me when I finally found a fix for [Problem]..."
-          
-          FONT: Arial or Helvetica (Twitter style) OR Impact Font (Classic style).
+          FORMAT ARCHETYPE: "The Inside Joke".
+          CORE CONCEPT: "Shared pain is funny."
+          FORMAT ESSENCE: Internet culture visual language (Impact font, low-res).
+          STRATEGIC ADAPTATION: Visual irony depicting "${parsedAngle.cleanAngle}".
           ${safety}
         `;
     }
 
-    if (format === CreativeFormat.TESTIMONIAL_HIGHLIGHT) {
+    if (format === CreativeFormat.REDDIT_THREAD) {
         return `
-          A chaotic but aesthetic "Social Proof Collage" or "Wall of Love".
-          
-          COMPOSITION:
-          A dense pile of mixed digital messages and reviews scattered/overlapping. 
-          Make it look like the internet is exploding with feedback.
+          FORMAT ARCHETYPE: "The Anonymous Truth".
+          CORE CONCEPT: "What people only say when they are anonymous."
+          FORMAT ESSENCE: Dark-mode screenshot of text-heavy forum. Raw honesty.
+          STRATEGIC ADAPTATION: Title "${parsedAngle.cleanAngle}" as a shocking confession.
+          ${safety}
+        `;
+    }
 
-          MUST INCLUDE A DIVERSE MIX OF:
-          1. WhatsApp Message Bubbles (Green UI).
-          2. Instagram DM screenshots (Dark Mode).
-          3. **TikTok Comment Overlays** (White text with shadow, "Liked by Creator" badge).
-          4. **Twitter/X Posts** (Clean white UI, showing Retweet counts).
-          5. **iPhone Lock Screen Notifications** (Stacked notifications saying "New Message").
-          6. 5-Star Website Review widgets (Yellow stars).
-          
-          CONTENT INSTRUCTION:
-          The CENTRAL or TOPMOST message contains the key hook: "${parsedAngle.cleanAngle}".
-          
-          HIGHLIGHT ACTION:
-          A bright NEON YELLOW digital highlighter stroke marks that specific sentence on the central message, making it pop out instantly against the visual chaos.
-          
-          DETAILS TO ADD CREDIBILITY:
-          - Add a "Verified" blue checkmark on one or two usernames.
-          - Show high engagement numbers (e.g., "2.4k Likes", "Just now").
-          - Vibe: "Viral Sensation", "Breaking the Internet", "Fear Of Missing Out (FOMO)".
-          
+    return getSpecificFormatPrompt(ctx);
+};
+
+/**
+ * NATIVE / SOCIAL FORMATS (Deterministic)
+ */
+export const getNativeStoryPrompt = (ctx: PromptContext): string => {
+    const { format, parsedAngle, enhancer, safety } = ctx;
+    const emotionalVibe = getEmotionalContext(ctx);
+    const mechanism = getMechanismContext(ctx);
+
+    if (format === CreativeFormat.IG_STORY_TEXT || format === CreativeFormat.STORY_QNA || format === CreativeFormat.STORY_POLL) {
+        return `
+          FORMAT ARCHETYPE: "The Casual Update".
+          CORE CONCEPT: "I'm just checking in with my friends."
+          FORMAT ESSENCE: Ephemeral phone capture. Visual is secondary background noise. Interactive element.
+          STRATEGIC ADAPTATION: Hook "${parsedAngle.cleanAngle}". Vibe reflects "${emotionalVibe}".
           ${enhancer} ${safety}
         `;
     }
 
-    // Fallback for others
-    if (format === CreativeFormat.REDDIT_THREAD) {
-         return `A screenshot of a Reddit thread (Dark Mode). Title: "${parsedAngle.cleanAngle}". Subreddit: r/TrueOffMyChest. Vibe: Authentic confession. ${safety}`;
+    if (format === CreativeFormat.TWITTER_REPOST || format === CreativeFormat.HANDHELD_TWEET) {
+        return `
+          FORMAT ARCHETYPE: "The Viral Opinion".
+          CORE CONCEPT: "This person said what we were all thinking."
+          FORMAT ESSENCE: Sharp text statement. Social proof. Intellectual or controversial.
+          STRATEGIC ADAPTATION: Tweet body contains "${parsedAngle.cleanAngle}". Grounded in physical world.
+          ${enhancer} ${safety}
+        `;
+    }
+
+    if (format === CreativeFormat.CHAT_CONVERSATION || format === CreativeFormat.DM_NOTIFICATION) {
+        return `
+          FORMAT ARCHETYPE: "The Leaked DM".
+          CORE CONCEPT: "Curiosity about private lives."
+          FORMAT ESSENCE: Screenshot of private 1-on-1 convo. Immediate, urgent, unscripted.
+          STRATEGIC ADAPTATION: Message "${parsedAngle.cleanAngle}" is breaking news about "${mechanism}".
+          ${enhancer} ${safety}
+        `;
+    }
+
+    if (format === CreativeFormat.PHONE_NOTES || format === CreativeFormat.REMINDER_NOTIF) {
+        return `
+          FORMAT ARCHETYPE: "The Inner Monologue".
+          CORE CONCEPT: "Inside my head."
+          FORMAT ESSENCE: Digital thoughts. Apple Notes or Lockscreen. Vulnerable.
+          STRATEGIC ADAPTATION: Text "${parsedAngle.cleanAngle}" is a realization about "${emotionalVibe}".
+          ${enhancer} ${safety}
+        `;
+    }
+
+    if (format === CreativeFormat.UGC_MIRROR) {
+        return `
+          FORMAT ARCHETYPE: "The Body Check".
+          CORE CONCEPT: "Showing progress/struggle."
+          FORMAT ESSENCE: First-person mirror selfie. Universal format for health/beauty.
+          STRATEGIC ADAPTATION: Confronting "${emotionalVibe}" in mirror. Overlay text "${parsedAngle.cleanAngle}".
+          ${enhancer} ${safety}
+        `;
     }
     
-    // Existing formats
-    if (format === CreativeFormat.VENN_DIAGRAM) {
-        return `A simple, minimalist Venn Diagram graphic on a solid, clean background. Left Circle Label: "Competitors". Right Circle Label: "${project.productName}". Intersection: "${parsedAngle.cleanAngle}". Style: Corporate Memphis flat design. ${enhancer} ${safety}`;
+    if (format === CreativeFormat.SOCIAL_COMMENT_STACK) {
+        return `
+          FORMAT ARCHETYPE: "The Comment Section War".
+          CORE CONCEPT: "Controversy breeds engagement."
+          FORMAT ESSENCE: A stack of social media comments overlaid on a blurred relevant video background.
+          STRATEGIC ADAPTATION: Show a debate about "${parsedAngle.cleanAngle}".
+          ${enhancer} ${safety}
+        `;
+    }
+    
+    if (format === CreativeFormat.EDUCATIONAL_RANT) {
+        return `
+          FORMAT ARCHETYPE: "The Green Screen Rant".
+          CORE CONCEPT: "Stop doing this wrong."
+          FORMAT ESSENCE: Person speaking passionately in front of a news article or screenshot.
+          STRATEGIC ADAPTATION: Pointing at "${parsedAngle.cleanAngle}" evidence.
+          ${enhancer} ${safety}
+        `;
+    }
+
+    return getSpecificFormatPrompt(ctx);
+};
+
+/**
+ * LEGACY / GENERAL FORMATS (Deterministic Fallback)
+ */
+export const getSpecificFormatPrompt = (ctx: PromptContext): string => {
+    const { format, parsedAngle, enhancer, safety, project } = ctx;
+    const emotionalVibe = getEmotionalContext(ctx);
+    const mechanism = getMechanismContext(ctx);
+
+    if (format === CreativeFormat.GMAIL_UX) {
+        return `
+          FORMAT ARCHETYPE: "The Digital Voyeur".
+          FORMAT ESSENCE: Private mobile inbox screenshot. Intimate.
+          STRATEGIC ADAPTATION: Subject Line "${parsedAngle.cleanAngle}" from "${project.productName}".
+          ${enhancer} ${safety}
+        `;
+    }
+
+    if (format === CreativeFormat.CARTOON) {
+        return `
+          FORMAT ARCHETYPE: "The Visual Fable".
+          FORMAT ESSENCE: Simple flat-style illustration. Friendly but deep.
+          STRATEGIC ADAPTATION: Journey from pain "${parsedAngle.cleanAngle}" to relief "${mechanism}".
+          ${safety}
+        `;
+    }
+
+    if (format === CreativeFormat.LONG_TEXT) {
+        return `
+          FORMAT ARCHETYPE: "The Lifestyle Feature".
+          FORMAT ESSENCE: High-end editorial design. Vogue/Kinfolk style.
+          STRATEGIC ADAPTATION: Headline "${parsedAngle.cleanAngle}" as serious topic.
+          ${safety}
+        `;
+    }
+
+    if (format === CreativeFormat.WHITEBOARD) {
+        return `
+          FORMAT ARCHETYPE: "The Napkin Explanation".
+          FORMAT ESSENCE: Rough handwritten explanation. "Secret" or "Lesson".
+          STRATEGIC ADAPTATION: Diagram explaining "${mechanism}".
+          ${enhancer} ${safety}
+        `;
+    }
+
+    if (format === CreativeFormat.STICKY_NOTE_REALISM) {
+        return `
+          FORMAT ARCHETYPE: "The Physical Reminder".
+          FORMAT ESSENCE: Bright sticky note in real world. Urgent.
+          STRATEGIC ADAPTATION: Note "${parsedAngle.cleanAngle}" placed at source of pain.
+          ${enhancer} ${safety}
+        `;
     }
 
     if (format === CreativeFormat.PRESS_FEATURE) {
         return `
-          A realistic digital screenshot of an online news article.
-          Header: A recognized GENERIC media logo (like 'Daily Health', 'TechInsider').
-          Headline: "${parsedAngle.cleanAngle}".
-          Image: High-quality candid photo of ${project.productName} embedded in the article body.
-          Vibe: Editorial, Trustworthy.
+          FORMAT ARCHETYPE: "The Social Proof".
+          FORMAT ESSENCE: Reputable media outlet screenshot. Authority.
+          STRATEGIC ADAPTATION: Headline "${parsedAngle.cleanAngle}" as breaking news.
+          ${enhancer} ${safety}
+        `;
+    }
+
+    if (format === CreativeFormat.US_VS_THEM || format === CreativeFormat.BEFORE_AFTER) {
+        return `
+          FORMAT ARCHETYPE: "The Binary Choice".
+          FORMAT ESSENCE: Strict visual separation. Contrast.
+          STRATEGIC ADAPTATION: Gap between "${emotionalVibe}" and "${mechanism}".
+          ${enhancer} ${safety}
+        `;
+    }
+
+    if (format === CreativeFormat.MECHANISM_XRAY || format === CreativeFormat.BENEFIT_POINTERS) {
+        return `
+          FORMAT ARCHETYPE: "The Under-the-Hood Look".
+          FORMAT ESSENCE: Scientific/Medical visualization. Evidence.
+          STRATEGIC ADAPTATION: How "${mechanism}" solves "${parsedAngle.cleanAngle}".
+          ${safety}
+        `;
+    }
+
+    if (format === CreativeFormat.TESTIMONIAL_HIGHLIGHT || format === CreativeFormat.CAROUSEL_TESTIMONIAL) {
+        return `
+          FORMAT ARCHETYPE: "The Wall of Love".
+          FORMAT ESSENCE: Chaotic, overlapping pile of feedback. FOMO.
+          STRATEGIC ADAPTATION: Highlighted text "${parsedAngle.cleanAngle}". Viral vibe.
           ${enhancer} ${safety}
         `;
     }
 
     if (format === CreativeFormat.LEAD_MAGNET_3D) {
         return `
-          A high-quality 3D render of a physical book or spiral-bound report sitting on a modern wooden desk.
-          Title on Cover: "${parsedAngle.cleanAngle}".
-          Cover Design: Bold typography, authoritative colors.
-          Lighting: Cinematic, golden hour.
-          Background: Blurry office.
+          FORMAT ARCHETYPE: "The Tangible Value".
+          FORMAT ESSENCE: Digital file as premium physical object. Thud factor.
+          STRATEGIC ADAPTATION: Title "${parsedAngle.cleanAngle}" as exclusive gift.
           ${enhancer} ${safety}
         `;
     }
-
-    if (format === CreativeFormat.MECHANISM_XRAY) {
-      return `
-        A scientific or medical illustration style (clean, 3D render or cross-section diagram).
-        Subject: Visualizing the problem: "${parsedAngle.cleanAngle}".
-        Detail: Show the biological or mechanical failure point clearly inside the body/object.
-        Labeling: Add a red arrow pointing to the problem area.
-        Vibe: Educational, shocking discovery.
-        ${safety}
-      `;
-    }
-
-    if (format === CreativeFormat.US_VS_THEM) {
-      return `
-        A split screen comparison image. 
-        Left side (Them): Visualize the PAIN of "${parsedAngle.cleanAngle}". Gloomy lighting. Labeled "Them". 
-        Right side (Us): Visualize the SOLUTION of "${parsedAngle.cleanAngle}". Bright lighting. Labeled "Us". 
-        ${enhancer} ${safety}.
-      `;
-    }
-
-    return ""; 
+    
+    return `
+      FORMAT ARCHETYPE: "The Adaptive Creative".
+      STRATEGIC ADAPTATION: Translate emotion "${emotionalVibe}" and concept "${parsedAngle.cleanAngle}" into scene.
+      ${enhancer} ${safety}
+    `;
 };
 
 export const getDefaultPrompt = (ctx: PromptContext): string => {
-    const { technicalPrompt, visualScene, visualStyle, enhancer, culturePrompt, moodPrompt, subjectFocus } = ctx;
-    const safety = getSafetyGuidelines(false);
-    
-    if (technicalPrompt && technicalPrompt.length > 20) {
-        return `${subjectFocus} ${technicalPrompt}. ${enhancer} ${culturePrompt} ${moodPrompt} ${safety}`;
-    } else {
-        return `${subjectFocus} ${visualScene}. Style: ${visualStyle || 'Natural'}. ${enhancer} ${culturePrompt} ${moodPrompt} ${safety}`;
-    }
+    return getSpecificFormatPrompt(ctx);
 };
