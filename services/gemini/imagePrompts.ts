@@ -12,7 +12,8 @@ export const generateAIWrittenPrompt = async (ctx: PromptContext): Promise<strin
         project, format, parsedAngle, 
         fullStoryContext, enhancer, safety, visualScene,
         // FIX: Ingesting the previously "Lost" context variables
-        personaVisuals, moodPrompt, culturePrompt
+        personaVisuals, moodPrompt, culturePrompt,
+        congruenceRationale, aspectRatio
     } = ctx;
 
     const story = fullStoryContext?.story;
@@ -21,6 +22,8 @@ export const generateAIWrittenPrompt = async (ctx: PromptContext): Promise<strin
     
     // Konteks Hook Utama
     const mainHook = parsedAngle.cleanAngle;
+    const strategyContext = parsedAngle.context; // Fix 1: The "Hidden Context"
+    
     const brandVoice = project.brandVoice || "Adaptable";
 
     const systemPrompt = `
@@ -35,6 +38,9 @@ export const generateAIWrittenPrompt = async (ctx: PromptContext): Promise<strin
     FORMAT REQUIRED: ${format}
     
     CORE HOOK: "${mainHook}"
+    STRATEGY CONTEXT (MUST FOLLOW): "${strategyContext}"
+    (If Strategy Context says 'Do not visualize X', OBEY IT. It is the override).
+    
     DEEP PAIN (Story): "${story?.narrative || 'General frustration'}"
     THE SOLUTION (Mechanism): "${mechanism?.scientificPseudo || 'New Technology'}"
     
@@ -60,6 +66,15 @@ export const generateAIWrittenPrompt = async (ctx: PromptContext): Promise<strin
     (INSTRUCTION: Balance the 'Format' style with this 'Brand Voice'. 
      - If Voice is 'Professional' but Format is 'Meme': Make a clean, witty, high-brow meme. NOT a trashy/ugly meme.
      - If Voice is 'Raw' and Format is 'Professional': Add grit and texture to the professional shot.)
+     
+    F. **CONGRUENCE RATIONALE (LOGIC):**
+    "${congruenceRationale || 'Ensure image matches headline'}"
+    (Why this image proves the hook is true. Ensure this logic is visually present).
+
+    G. **COMPOSITION & CANVAS (ASPECT RATIO: ${aspectRatio}):**
+    ${aspectRatio === '9:16' 
+      ? 'VERTICAL FORMAT (Story/Reels). CRITICAL: Leave significant "Negative Space" at the top and bottom (20%) for UI overlays. Center subject in the middle band. Do not crop important details on edges.' 
+      : 'SQUARE FORMAT (Feed). CRITICAL: Center the subject. Balanced composition.'}
     
     --- 3. LOGIC ROUTING & FORMAT INSTRUCTIONS ---
     

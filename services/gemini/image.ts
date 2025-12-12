@@ -1,3 +1,4 @@
+
 import { ProjectContext, CreativeFormat, GenResult, MarketAwareness } from "../../types";
 import { ai } from "./client";
 import { 
@@ -20,7 +21,8 @@ export const generateCreativeImage = async (
   visualStyle: string,
   technicalPrompt: string,
   aspectRatio: string = "1:1",
-  referenceImageBase64?: string
+  referenceImageBase64?: string,
+  congruenceRationale?: string
 ): Promise<GenResult<string | null>> => {
   
   const model = "gemini-2.5-flash-image";
@@ -80,6 +82,8 @@ export const generateCreativeImage = async (
       enhancer: appliedEnhancer,
       safety,
       fullStoryContext,
+      congruenceRationale,
+      aspectRatio
       // embeddedText is handled by the Unified Prompt Engine now
   };
 
@@ -141,7 +145,8 @@ export const generateCarouselSlides = async (
   visualScene: string,
   visualStyle: string,
   technicalPrompt: string,
-  persona: any
+  persona: any,
+  congruenceRationale?: string
 ): Promise<GenResult<string[]>> => {
   const slides: string[] = [];
   let totalInputTokens = 0;
@@ -163,7 +168,9 @@ export const generateCarouselSlides = async (
           slideScene, 
           visualStyle, 
           technicalPrompt, 
-          "1:1"
+          "1:1",
+          undefined,
+          congruenceRationale
       );
   });
 

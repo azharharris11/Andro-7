@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import Sidebar from './components/Sidebar';
@@ -368,7 +369,8 @@ const App: React.FC = () => {
               
               if (fmt.includes('Carousel')) {
                    const slidesRes = await GeminiService.generateCarouselSlides(
-                       project, fmt, fullAngle, concept.visualScene, concept.visualStyle, concept.technicalPrompt, personaMeta
+                       project, fmt, fullAngle, concept.visualScene, concept.visualStyle, concept.technicalPrompt, personaMeta,
+                       concept.congruenceRationale // Pass rationale
                    );
                    if (slidesRes.data && slidesRes.data.length > 0) {
                        imageUrl = slidesRes.data[0];
@@ -377,7 +379,8 @@ const App: React.FC = () => {
                    }
               } else {
                    const imgRes = await GeminiService.generateCreativeImage(
-                       project, personaMeta, fullAngle, fmt, concept.visualScene, concept.visualStyle, concept.technicalPrompt
+                       project, personaMeta, fullAngle, fmt, concept.visualScene, concept.visualStyle, concept.technicalPrompt, "1:1", undefined,
+                       concept.congruenceRationale // Pass rationale
                    );
                    imageUrl = imgRes.data;
                    imageTokens = imgRes.inputTokens + imgRes.outputTokens;
@@ -449,7 +452,8 @@ const App: React.FC = () => {
       // We reuse the concept but regenerate the image
       const imgRes = await GeminiService.generateCreativeImage(
            project, node.meta, node.meta.angle, node.format!, 
-           concept.visualScene, concept.visualStyle, concept.technicalPrompt, aspectRatio
+           concept.visualScene, concept.visualStyle, concept.technicalPrompt, aspectRatio,
+           undefined, concept.congruenceRationale // Pass rationale
       );
       
       handleUpdateNode(id, { isLoading: false, imageUrl: imgRes.data || node.imageUrl });
@@ -518,7 +522,7 @@ const App: React.FC = () => {
                             if(node) {
                                 handleUpdateNode(id, { isLoading: true });
                                 const pred = await GeminiService.predictCreativePerformance(project, node);
-                                handleUpdateNode(id, { isLoading: false, prediction: pred.data });
+                                handleUpdateNode(node.id, { isLoading: false, prediction: pred.data });
                             }
                        }}
                        project={project}

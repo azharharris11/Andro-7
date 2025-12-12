@@ -31,6 +31,10 @@ export interface PromptContext {
         mechanism?: any;
     };
     embeddedText?: string;
+    
+    // Fixes for "Lost Memory"
+    congruenceRationale?: string;
+    aspectRatio?: string;
 }
 
 export const getSafetyGuidelines = (isUglyOrMeme: boolean): string => {
