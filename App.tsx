@@ -13,7 +13,7 @@ import {
   NodeData, Edge, NodeType, ViewMode, ProjectContext, 
   CreativeFormat, CampaignStage, MarketAwareness, 
   LanguageRegister, FunnelStage, CopyFramework, TestingTier,
-  StoryOption, BigIdeaOption, MechanismOption, HVCOOption 
+  StoryOption, BigIdeaOption, MechanismOption, HVCOOption, StrategyMode 
 } from './types';
 
 import * as GeminiService from './services/geminiService';
@@ -27,7 +27,8 @@ const initialProject: ProjectContext = {
   marketAwareness: MarketAwareness.PROBLEM_AWARE,
   funnelStage: FunnelStage.TOF,
   languageRegister: LanguageRegister.CASUAL,
-  imageModel: 'standard' // Default
+  imageModel: 'standard', // Default
+  strategyMode: StrategyMode.DIRECT_RESPONSE
 };
 
 const initialNodes: NodeData[] = [
@@ -159,6 +160,31 @@ const App: React.FC = () => {
                       y: node.y + (i - 1) * 300,
                       parentId: nodeId
                   }, nodeId);
+              });
+          }
+      }
+      
+      // Handle EXPRESS PROMO FLOW (NEW)
+      if (action === 'start_express_flow') {
+          handleUpdateNode(nodeId, { isLoading: true });
+          // Temporarily force strategy mode to HARD_SELL for this action context if not already
+          const expressProject = { ...project, strategyMode: StrategyMode.HARD_SELL };
+          const result = await GeminiService.generateExpressAngles(expressProject);
+          handleUpdateNode(nodeId, { isLoading: false });
+          
+          if (result.data) {
+              result.data.forEach((promo: any, i: number) => {
+                   addNode({
+                       id: uuidv4(),
+                       type: NodeType.ANGLE, // Reuse Angle node but it is a "Promo Angle"
+                       title: promo.headline,
+                       description: `${promo.testingTier}: ${promo.hook}`,
+                       meta: { angle: promo.hook, ...promo },
+                       testingTier: promo.testingTier,
+                       x: node.x + 400,
+                       y: node.y + (i - 1) * 200,
+                       parentId: nodeId
+                   }, nodeId);
               });
           }
       }

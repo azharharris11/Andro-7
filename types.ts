@@ -105,6 +105,12 @@ export enum LanguageRegister {
   PROFESSIONAL = 'Formal/Professional (Anda/Saya) - B2B/Luxury/Medical'
 }
 
+export enum StrategyMode {
+  DIRECT_RESPONSE = 'Deep Dive (Scientific/Story) - Best for Health/Biz',
+  VISUAL_IMPULSE = 'Visual/Impulse (Vibe/Aesthetic) - Best for Fashion/F&B',
+  HARD_SELL = 'Hard Sell (Promo/Event) - Best for Flash Sale'
+}
+
 export enum TestingTier {
   TIER_1 = 'TIER 1: Concept Isolation (High Budget)',
   TIER_2 = 'TIER 2: Persona Isolation (Mid Budget)',
@@ -238,8 +244,9 @@ export interface ProjectContext {
   offerOptions?: string[]; 
   marketAwareness?: MarketAwareness;
   copyFramework?: CopyFramework;
+  strategyMode?: StrategyMode; // NEW FIELD
   
-  imageModel?: 'standard' | 'pro'; // New Field
+  imageModel?: 'standard' | 'pro'; 
 }
 
 export interface CreativeConcept {

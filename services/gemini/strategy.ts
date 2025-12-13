@@ -1,6 +1,6 @@
 
 import { Type } from "@google/genai";
-import { ProjectContext, GenResult, StoryOption, BigIdeaOption, MechanismOption, HVCOOption, MafiaOffer, LanguageRegister, MarketAwareness } from "../../types";
+import { ProjectContext, GenResult, StoryOption, BigIdeaOption, MechanismOption, HVCOOption, MafiaOffer, LanguageRegister, MarketAwareness, StrategyMode } from "../../types";
 import { ai, extractJSON } from "./client";
 
 // Shared Helper (Duplicate logic for now to keep files independent, or import from utils if available)
@@ -179,6 +179,33 @@ export const generateMechanisms = async (project: ProjectContext, bigIdea: BigId
   const model = "gemini-2.5-flash";
   const register = project.languageRegister || LanguageRegister.CASUAL;
   const langInstruction = getLanguageInstruction(project.targetCountry || "USA", register);
+  
+  // DYNAMIC STRATEGY ADJUSTMENT
+  const isSimpleProduct = project.strategyMode === StrategyMode.VISUAL_IMPULSE || project.strategyMode === StrategyMode.HARD_SELL;
+  
+  let taskInstruction = "";
+  
+  if (isSimpleProduct) {
+      // FOR SIMPLE PRODUCTS (Fashion, Food, Simple Gadgets)
+      taskInstruction = `
+        **MODE: VISUAL/IMPULSE PRODUCT (Non-Scientific)**
+        The user is selling a product like Food, Fashion, or Decor. 
+        DO NOT invent a fake scientific mechanism like "Bio-Weave Protocol". That sounds fake.
+        
+        INSTEAD, Focus on the "SENSORY LOGIC" or "QUALITY FEATURE":
+        1. UMP (The Problem): Why do cheap alternatives suck? (e.g. "Cotton shrinks", "Soggy crust").
+        2. UMS (The Solution): What is the specific feature here? (e.g. "Pre-shrunk comb cotton", "Double-fried technique").
+        3. MECHANISM NAME: Give it a descriptive name (e.g. "Signature Crunch", "Stay-Fit Fabric").
+      `;
+  } else {
+      // FOR COMPLEX PRODUCTS (Supplements, SaaS, Skincare) - DEFAULT
+      taskInstruction = `
+        **MODE: DEEP DIVE / SCIENTIFIC**
+        1. UMP (The Real Villain): Why do standard solutions fail? What is the biological/technical root cause?
+        2. UMS (The New Hero): How does THIS product solve the UMP? Be specific about ingredients/tech.
+        3. MECHANISM NAME (The Wrapper): Give the UMS a proprietary name (e.g. "Dual-Action Weave", "Micro-Encapsulation").
+      `;
+  }
 
   const prompt = `
     ROLE: World-Class Direct Response Product Developer.
@@ -196,20 +223,8 @@ export const generateMechanisms = async (project: ProjectContext, bigIdea: BigId
     Define the UMP (Unique Mechanism of Problem) and UMS (Unique Mechanism of Solution).
     This gives the "Logic" to the "Magic".
     
-    1. UMP (The Real Villain): 
-       - Why do standard solutions fail? What is the biological/technical root cause?
-       - Don't just say "It's hard". Say "Cortisol spikes block fat loss" or "Standard foam collapses under pressure".
-       - Make it sound scientific or logical (The "Enemy").
+    ${taskInstruction}
     
-    2. UMS (The New Hero):
-       - How does THIS product solve the UMP?
-       - Be specific about the ingredient, feature, or process found in the product description.
-    
-    3. MECHANISM NAME (The Wrapper):
-       - Give the UMS a proprietary name. 
-       - Examples: "Dual-Action Weave", "Micro-Encapsulation", "The 3-Phase Protocol".
-       - NOT generic: "Good Quality", "Best Service", "Legacy Protocol".
-       
     **CRITICAL: The 'Scientific Pseudo Name' (Headline) must be DESCRIPTIVE of the physical product.**
     
     OUTPUT JSON (3 Variants):
@@ -397,6 +412,67 @@ export const generateAngles = async (project: ProjectContext, personaName: strin
             hook: { type: Type.STRING, description: "The opening line or concept" }
           },
           required: ["headline", "painPoint", "psychologicalTrigger", "testingTier"]
+        }
+      }
+    }
+  });
+
+  return {
+    data: extractJSON(response.text || "[]"),
+    inputTokens: response.usageMetadata?.promptTokenCount || 0,
+    outputTokens: response.usageMetadata?.candidatesTokenCount || 0
+  };
+};
+
+// --- NEW FUNCTION: EXPRESS PROMO MODE ---
+export const generateExpressAngles = async (project: ProjectContext): Promise<GenResult<any[]>> => {
+  const model = "gemini-2.5-flash";
+  const register = project.languageRegister || LanguageRegister.CASUAL;
+  const langInstruction = getLanguageInstruction(project.targetCountry || "USA", register);
+  
+  const prompt = `
+    ROLE: E-Commerce Campaign Manager (Flash Sale / Promo Specialist).
+    
+    CONTEXT:
+    Product: ${project.productName}
+    Description: ${project.productDescription}
+    Current Offer: ${project.offer}
+    
+    GOAL: 
+    We need "Hard Sell" or "Impulse Buy" angles. 
+    Skip the deep psychology. Focus on VISUAL APPEAL, SCARCITY, and DEAL VALUE.
+    
+    TASK:
+    Generate 3 distinct promotional angles:
+    1. THE "UGC" ANGLE (Social Proof / Viral Vibe).
+    2. THE "URGENCY" ANGLE (Flash Sale / FOMO).
+    3. THE "DEMO" ANGLE (Features / Aesthetic).
+    
+    ${langInstruction}
+    **CRITICAL: Output 'headline' and 'hook' in the Target Language.**
+    
+    OUTPUT JSON:
+    Return 3 items.
+    - headline: Short catchy title (e.g. "50% OFF Today").
+    - hook: The first line of copy.
+    - testingTier: "TIER 3: SPRINT" (Hardcoded).
+  `;
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            headline: { type: Type.STRING },
+            hook: { type: Type.STRING },
+            testingTier: { type: Type.STRING }
+          },
+          required: ["headline", "hook"]
         }
       }
     }

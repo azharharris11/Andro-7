@@ -304,18 +304,27 @@ const Node: React.FC<NodeProps> = ({ data, selected, onClick, onAction, isGridVi
         {!isGridView && !data.prediction && !isGhost && (
             <>
             {data.type === NodeType.ROOT && (
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-1.5">
+                    <div className="flex gap-1.5">
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onAction('expand_personas', data.id); }}
+                            className="flex-1 py-2 bg-white hover:bg-blue-50 hover:border-blue-200 text-blue-600 text-xs font-medium rounded-lg border border-slate-200 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                        >
+                            <User className="w-3 h-3" /> Standard
+                        </button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onAction('start_story_flow', data.id); }}
+                            className="flex-1 py-2 bg-white hover:bg-orange-50 hover:border-orange-200 text-orange-600 text-xs font-medium rounded-lg border border-slate-200 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                        >
+                            <BookOpen className="w-3 h-3" /> Story Mode
+                        </button>
+                    </div>
+                    {/* EXPRESS MODE BUTTON */}
                     <button 
-                        onClick={(e) => { e.stopPropagation(); onAction('expand_personas', data.id); }}
-                        className="flex-1 py-2 bg-white hover:bg-blue-50 hover:border-blue-200 text-blue-600 text-xs font-medium rounded-lg border border-slate-200 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                        onClick={(e) => { e.stopPropagation(); onAction('start_express_flow', data.id); }}
+                        className="w-full py-2 bg-gradient-to-r from-red-600 to-pink-600 text-white hover:opacity-90 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-sm"
                     >
-                        <User className="w-3 h-3" /> Standard Flow
-                    </button>
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); onAction('start_story_flow', data.id); }}
-                        className="flex-1 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:opacity-90 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-sm"
-                    >
-                        <BookOpen className="w-3 h-3" /> Story Lead
+                        <Zap className="w-3 h-3" /> Express Promo Mode
                     </button>
                 </div>
             )}
