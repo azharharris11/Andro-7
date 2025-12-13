@@ -1,5 +1,5 @@
 
-import { CreativeFormat } from "../../types";
+import { CreativeFormat, StrategyMode } from "../../types";
 import { PromptContext, ENHANCERS, getSafetyGuidelines } from "./imageUtils";
 import { ai } from "./client";
 
@@ -26,6 +26,28 @@ export const generateAIWrittenPrompt = async (ctx: PromptContext): Promise<strin
     
     const brandVoice = project.brandVoice || "Adaptable";
 
+    // --- FIX 3: CONDITIONAL VISUAL CLEANLINESS ---
+    const isHardSell = project.strategyMode === StrategyMode.HARD_SELL;
+    const isVisualImpulse = project.strategyMode === StrategyMode.VISUAL_IMPULSE;
+    
+    // If selling hard or doing aesthetic vibes, DO NOT show the messy persona world.
+    let sceneEnvironment = "";
+    if (isHardSell || isVisualImpulse) {
+        sceneEnvironment = `
+        B. **SCENE CONTEXT (CLEAN/AESTHETIC):**
+        - ENVIRONMENT: Clean, Professional, Studio or High-End Lifestyle background.
+        - FOCUS: The Product is the main hero. DO NOT add clutter or messy props.
+        - LIGHTING: Bright, Commercial, Appetizing.
+        - VIBE: ${isHardSell ? 'High Urgency, Retail, Shopping' : 'Luxurious, Calm, Aspirational'}.
+        `;
+    } else {
+        sceneEnvironment = `
+        B. **PERSONA WORLD (Environmental Props):** 
+        ${personaVisuals}
+        (CRITICAL: These specific objects/mess/clutter MUST appear in the background to signal we know the user's private life).
+        `;
+    }
+
     const systemPrompt = `
     ROLE: Hybrid Creative Director & Copywriter (Direct Response Expert).
     
@@ -51,9 +73,7 @@ export const generateAIWrittenPrompt = async (ctx: PromptContext): Promise<strin
     "${visualScene}"
     (Use this action as the core subject. Do not hallucinate a totally different scene. Adapt THIS scene into the Format below).
     
-    B. **PERSONA WORLD (Environmental Props):** 
-    ${personaVisuals}
-    (CRITICAL: These specific objects/mess/clutter MUST appear in the background to signal we know the user's private life).
+    ${sceneEnvironment}
 
     C. **MOOD & LIGHTING:** 
     ${moodPrompt}

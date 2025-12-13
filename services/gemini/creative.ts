@@ -62,26 +62,32 @@ export const generateCreativeConcept = async (
 
   let strategyInstruction = "";
 
-  if (strategyMode === StrategyMode.VISUAL_IMPULSE) {
+  // DYNAMIC STRATEGY DIRECTION (The "Creative Director" Logic)
+  if (strategyMode === StrategyMode.HARD_SELL) {
       strategyInstruction = `
-        STRATEGY MODE: VISUAL IMPULSE (Lifestyle/Aesthetic).
-        - DO NOT visualize "Pain" or "Struggle".
-        - FOCUS on: Desire, Status, Vibe, Texture, Satisfaction.
-        - The visual must look like a Pinterest Moodboard or High-End Editorial.
-        - Avoid "Marketing Graphics". Make it look artful.
+        **MODE: HARD SELL / PROMO**
+        1. FORGET "Storytelling" or "Struggle". Focus on the OFFER and the PRODUCT.
+        2. The visual MUST be a "Hero Shot" of the product. 
+        3. Make it look Premium, Trustworthy, and Urgent.
+        4. NO "Messy/Ugly" aesthetics unless specifically requested by format.
+        5. The Hook "${angle}" should be treated as a HEADLINE, not a story starter.
       `;
-  } else if (strategyMode === StrategyMode.HARD_SELL) {
+  } else if (strategyMode === StrategyMode.VISUAL_IMPULSE) {
       strategyInstruction = `
-        STRATEGY MODE: HARD SELL (Promo).
-        - FOCUS on: The Product, The Offer, The Urgency.
-        - Visuals should be loud, clear, and product-focused.
+        **MODE: VISUAL IMPULSE**
+        1. Focus on AESTHETIC and VIBE.
+        2. Make it look like a Pinterest/Instagram influencer shot.
+        3. Product must look desirable/aspirational.
+        4. NO "Pain/Suffering" visuals.
       `;
   } else {
       // Direct Response (Default)
       strategyInstruction = `
-        STRATEGY MODE: DIRECT RESPONSE (Scientific/Story).
-        - FOCUS on: Pattern Interrupts, Visualizing the Problem (Pain), and the Mechanism.
-        - Visuals should stop the scroll by being weird, gross, or highly relatable.
+        **MODE: DIRECT RESPONSE (Viral/Hook)**
+        1. Imagine the "Standard Boring Ad".
+        2. THROW IT IN THE TRASH.
+        3. Do the EXACT OPPOSITE. Create a Pattern Interrupt.
+        4. Focus on the PROBLEM (Pain) first.
       `;
   }
 
@@ -90,21 +96,20 @@ export const generateCreativeConcept = async (
   const personaPain = persona.visceralSymptoms ? persona.visceralSymptoms.join(", ") : "General frustration";
 
   const prompt = `
-    # Role: Creative Director (The Pattern Interrupt Specialist)
+    # Role: Creative Director (Adaptable Style)
 
-    **SABRI SUBY'S "ANTI-COMPETITOR" RULE:**
-    1. Imagine the "Standard Boring Ad" for this industry.
-    2. THROW IT IN THE TRASH.
-    3. Do the EXACT OPPOSITE.
-    
+    **CONTEXT:**
+    Strategy Mode: ${strategyMode}
+    Format: ${format}
+    Context: ${project.targetCountry}
+
+    **DIRECTION RULES (CRITICAL):**
+    ${strategyInstruction}
+
     **INPUTS:**
     Product Name: ${project.productName}
     Product Description: ${project.productDescription}
     Winning Insight (Hook): ${angle}
-    Format: ${format}
-    Context: ${project.targetCountry}
-    
-    ${strategyInstruction}
     
     **STRATEGIC CONTEXT (USE THIS LOGIC):**
     ${mech ? `Mechanism Action: ${mech.ums}` : ''}
@@ -120,7 +125,7 @@ export const generateCreativeConcept = async (
     *   If 'Ugly Visual': Describe a chaotic, low-fidelity scene.
 
     **TASK:**
-    Create a concept that VIOLATES the expectations of the feed.
+    Create a concept that fits the Strategy Mode and Format.
     
     **OUTPUT REQUIREMENTS (JSON):**
     1. **visualScene**: The Director's Note. Specific action.
