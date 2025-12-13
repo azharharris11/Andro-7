@@ -3,10 +3,10 @@ import { ProjectContext, CreativeFormat, MarketAwareness } from "../../types";
 
 export interface ParsedAngle {
     cleanAngle: string;
+    context: string;
     isPainFocused: boolean;
     isSolutionFocused: boolean;
     isUrgent: boolean;
-    context: string;
 }
 
 export interface PromptContext {
@@ -159,11 +159,11 @@ export const getPersonaVisualContext = (persona: any, angle: string): string => 
 };
 
 export const parseAngle = (angle: string): ParsedAngle => {
-    const parts = angle.split('[STRATEGY CONTEXT:');
-    const cleanAngle = parts[0].trim().replace(/^"|"$/g, '');
-    const context = parts[1]?.replace(']', '').trim() || "";
+    // Legacy support: Just clean quotes if any
+    const cleanAngle = angle.trim().replace(/^"|"$/g, '');
+    const context = ""; // Context is now passed via Object, not string injection
     
-    const lower = (cleanAngle + context).toLowerCase();
+    const lower = cleanAngle.toLowerCase();
     
     return {
         cleanAngle,

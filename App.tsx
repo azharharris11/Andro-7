@@ -325,87 +325,51 @@ const App: React.FC = () => {
       setIsFormatSelectorOpen(false);
       handleUpdateNode(pendingFormatParentId, { isLoading: true });
       
-      // FIX 1: CURE CONTEXT AMNESIA
-      // We must construct a 'fullStrategyContext' that includes strategy data from the parent node.
-      // parentNode.meta usually contains persona data.
-      // parentNode.storyData, bigIdeaData, mechanismData exist on the node itself, not always in meta.
+      // FIX 1: CURE CONTEXT AMNESIA (Full Object Passing)
       const fullStrategyContext = {
-          ...(parentNode.meta || {}),
+          ...(parentNode.meta || {}), // Contains persona, symptoms, etc.
           storyData: parentNode.storyData,
           bigIdeaData: parentNode.bigIdeaData,
-          mechanismData: parentNode.mechanismData
+          mechanismData: parentNode.mechanismData,
+          hookData: parentNode.hookData,
+          hvcoData: parentNode.hvcoData
       };
 
       const formatsToGen = Array.from(selectedFormats) as CreativeFormat[];
       let verticalOffset = 0;
 
-      // --- LOGIC FOR CONTEXT EXTRACTION ---
+      // --- LOGIC FOR CONTEXT EXTRACTION (Simpler, Object-Based) ---
       let angleToUse = parentNode.title;
-      let deepContext = "";
       
       if (parentNode.type === NodeType.ANGLE && parentNode.meta?.hook) {
           angleToUse = parentNode.meta.hook;
       } else if (parentNode.type === NodeType.HOOK_NODE && parentNode.hookData) {
-          // --- SURGICAL FIX: HOOK VISUAL CONTEXT ---
           angleToUse = parentNode.hookData;
-          const visualCheatSheet = parentNode.mechanismData?.ums || "Show the problem vividly";
-          deepContext = ` [STRATEGY CONTEXT: The Hook is "${parentNode.hookData}". BUT the visual must depict THIS ACTION: "${visualCheatSheet}". Do not just visualize the text of the hook, visualize the ACTION behind it.]`;
-      
       } else if (parentNode.type === NodeType.BIG_IDEA_NODE && parentNode.bigIdeaData) {
-          // FIX: Use Concept instead of Headline for visuals
           angleToUse = `Show concept: ${parentNode.bigIdeaData.concept}`;
-          deepContext = ` [STRATEGY CONTEXT: The Big Idea is "${parentNode.bigIdeaData.headline}". But for the image, visualize the CONCEPT: ${parentNode.bigIdeaData.concept}. Shift belief: ${parentNode.bigIdeaData.targetBelief}]`;
-      
       } else if (parentNode.type === NodeType.MECHANISM_NODE && parentNode.mechanismData) {
-          // FIX: Use UMS action instead of Scientific Name
           angleToUse = `Show the action of: ${parentNode.mechanismData.ums}`; 
-          deepContext = ` [STRATEGY CONTEXT: Do NOT visualize the text "${parentNode.mechanismData.scientificPseudo}". Instead, visualize the physical process: ${parentNode.mechanismData.ums}]`;
-      
       } else if (parentNode.type === NodeType.HVCO_NODE && parentNode.hvcoData) {
           angleToUse = parentNode.hvcoData.title;
-          deepContext = ` [STRATEGY CONTEXT: Lead Magnet Title "${parentNode.hvcoData.title}". Hook: "${parentNode.hvcoData.hook}"]`;
       } else if (parentNode.type === NodeType.STORY_NODE && parentNode.storyData) {
           angleToUse = parentNode.storyData.title;
-          deepContext = ` [STRATEGY CONTEXT: Story Narrative "${parentNode.storyData.narrative}"]`;
       }
 
       for (const fmt of formatsToGen) {
-          // --- PER-FORMAT CONTEXT REFINEMENT ---
-          let formatSpecificAngle = angleToUse;
-          let formatSpecificContext = deepContext;
-
-          if (parentNode.type === NodeType.HOOK_NODE && parentNode.hookData) {
-              const isNative = [
-                  CreativeFormat.CHAT_CONVERSATION, 
-                  CreativeFormat.IG_STORY_TEXT, 
-                  CreativeFormat.PHONE_NOTES, 
-                  CreativeFormat.REMINDER_NOTIF,
-                  CreativeFormat.DM_NOTIFICATION,
-                  CreativeFormat.STICKY_NOTE_REALISM,
-                  CreativeFormat.SOCIAL_COMMENT_STACK
-              ].includes(fmt);
-
-              if (isNative) {
-                  formatSpecificContext = ` [STRATEGY CONTEXT: The Hook is "${parentNode.hookData}". BUT THIS IS A NATIVE AD format. You MUST translate this "Marketing Hook" into a "Real Life Moment" that implies the hook is true. Don't be literal. Be authentic.]`;
-              }
-          }
-
-          const fullAngle = formatSpecificAngle + formatSpecificContext;
-
-          // 1. Concept
-          const conceptRes = await GeminiService.generateCreativeConcept(project, fullStrategyContext, fullAngle, fmt);
+          // 1. Concept (Pass Full Context)
+          const conceptRes = await GeminiService.generateCreativeConcept(project, fullStrategyContext, angleToUse, fmt);
           
           if (conceptRes.data) {
               const concept = conceptRes.data;
               
-              // 2. Visual
+              // 2. Visual (Pass Full Context)
               let imageUrl: string | null = null;
               let carouselImages: string[] = [];
               let imageTokens = 0;
               
               if (fmt.includes('Carousel')) {
                    const slidesRes = await GeminiService.generateCarouselSlides(
-                       project, fmt, fullAngle, concept.visualScene, concept.visualStyle, concept.technicalPrompt, fullStrategyContext,
+                       project, fmt, angleToUse, concept.visualScene, concept.visualStyle, concept.technicalPrompt, fullStrategyContext,
                        concept.congruenceRationale // Pass rationale
                    );
                    if (slidesRes.data && slidesRes.data.length > 0) {
@@ -415,14 +379,14 @@ const App: React.FC = () => {
                    }
               } else {
                    const imgRes = await GeminiService.generateCreativeImage(
-                       project, fullStrategyContext, fullAngle, fmt, concept.visualScene, concept.visualStyle, concept.technicalPrompt, "1:1", undefined,
+                       project, fullStrategyContext, angleToUse, fmt, concept.visualScene, concept.visualStyle, concept.technicalPrompt, "1:1", undefined,
                        concept.congruenceRationale // Pass rationale
                    );
                    imageUrl = imgRes.data;
                    imageTokens = imgRes.inputTokens + imgRes.outputTokens;
               }
 
-              // 3. Copy
+              // 3. Copy (Pass Full Context - NOW FIXED)
               const isHVCO = parentNode.type === NodeType.HVCO_NODE;
               const copyRes = await GeminiService.generateAdCopy(
                   project, fullStrategyContext, concept, angleToUse, fmt, isHVCO, parentNode.mechanismData

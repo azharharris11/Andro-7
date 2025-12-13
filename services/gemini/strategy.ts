@@ -190,12 +190,12 @@ export const generateMechanisms = async (project: ProjectContext, bigIdea: BigId
       taskInstruction = `
         **MODE: VISUAL/IMPULSE PRODUCT (Non-Scientific)**
         The user is selling a product like Food, Fashion, or Decor. 
-        DO NOT invent a fake scientific mechanism like "Bio-Weave Protocol". That sounds fake.
+        DO NOT invent a fake scientific mechanism like "Bio-Weave Protocol". That sounds fake and untrustworthy for this niche.
         
-        INSTEAD, Focus on the "SENSORY LOGIC" or "QUALITY FEATURE":
-        1. UMP (The Problem): Why do cheap alternatives suck? (e.g. "Cotton shrinks", "Soggy crust").
-        2. UMS (The Solution): What is the specific feature here? (e.g. "Pre-shrunk comb cotton", "Double-fried technique").
-        3. MECHANISM NAME: Give it a descriptive name (e.g. "Signature Crunch", "Stay-Fit Fabric").
+        INSTEAD, Focus on the "QUALITY FEATURE" or "SIGNATURE STYLE":
+        1. UMP (The Problem): Why do cheap alternatives suck? (e.g. "Cotton shrinks", "Soggy crust", "Itchy fabric").
+        2. UMS (The Solution): What is the specific crafting technique or material here? (e.g. "Pre-shrunk comb cotton", "Double-fried technique").
+        3. FEATURE NAME (scientificPseudo): Give it a premium descriptive name (e.g. "Signature Crunch", "Cloud-Fit Fabric"). DO NOT make it sound like a chemical.
       `;
   } else {
       // FOR COMPLEX PRODUCTS (Supplements, SaaS, Skincare) - DEFAULT
@@ -203,7 +203,7 @@ export const generateMechanisms = async (project: ProjectContext, bigIdea: BigId
         **MODE: DEEP DIVE / SCIENTIFIC**
         1. UMP (The Real Villain): Why do standard solutions fail? What is the biological/technical root cause?
         2. UMS (The New Hero): How does THIS product solve the UMP? Be specific about ingredients/tech.
-        3. MECHANISM NAME (The Wrapper): Give the UMS a proprietary name (e.g. "Dual-Action Weave", "Micro-Encapsulation").
+        3. MECHANISM NAME (scientificPseudo): Give the UMS a proprietary name (e.g. "Dual-Action Weave", "Micro-Encapsulation").
       `;
   }
 
@@ -225,12 +225,10 @@ export const generateMechanisms = async (project: ProjectContext, bigIdea: BigId
     
     ${taskInstruction}
     
-    **CRITICAL: The 'Scientific Pseudo Name' (Headline) must be DESCRIPTIVE of the physical product.**
-    
     OUTPUT JSON (3 Variants):
     - ump: The Root Cause of failure (In Target Language).
     - ums: The New Solution mechanism (In Target Language).
-    - scientificPseudo: A catchy but CLEAR name for the mechanism.
+    - scientificPseudo: The catchy Name for the mechanism/feature.
   `;
 
   const response = await ai.models.generateContent({

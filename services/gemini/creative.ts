@@ -1,6 +1,6 @@
 
 import { Type } from "@google/genai";
-import { ProjectContext, CreativeFormat, AdCopy, CreativeConcept, GenResult, StoryOption, BigIdeaOption, MechanismOption, MarketAwareness, LanguageRegister } from "../../types";
+import { ProjectContext, CreativeFormat, AdCopy, CreativeConcept, GenResult, StoryOption, BigIdeaOption, MechanismOption, MarketAwareness, LanguageRegister, StrategyMode } from "../../types";
 import { ai, extractJSON } from "./client";
 
 export const generateSalesLetter = async (
@@ -45,21 +45,44 @@ export const generateSalesLetter = async (
 
 export const generateCreativeConcept = async (
   project: ProjectContext, 
-  persona: any, 
+  fullStrategyContext: any, // Accepted properly now
   angle: string, 
   format: CreativeFormat
 ): Promise<GenResult<CreativeConcept>> => {
   const model = "gemini-2.5-flash";
 
   const awareness = project.marketAwareness || "Problem Aware";
+  const strategyMode = project.strategyMode || StrategyMode.DIRECT_RESPONSE;
   
-  let awarenessInstruction = "";
-  if (awareness.includes("Unaware") || awareness.includes("Problem")) {
-      awarenessInstruction = `AWARENESS: LOW. Focus on SYMPTOM. Use Pattern Interrupt.`;
-  } else if (awareness.includes("Solution")) {
-      awarenessInstruction = `AWARENESS: MEDIUM. Focus on MECHANISM and SOCIAL PROOF.`;
+  // Extract Strategy Data safely
+  const persona = fullStrategyContext || {};
+  const story = fullStrategyContext?.storyData;
+  const mech = fullStrategyContext?.mechanismData;
+  const bigIdea = fullStrategyContext?.bigIdeaData;
+
+  let strategyInstruction = "";
+
+  if (strategyMode === StrategyMode.VISUAL_IMPULSE) {
+      strategyInstruction = `
+        STRATEGY MODE: VISUAL IMPULSE (Lifestyle/Aesthetic).
+        - DO NOT visualize "Pain" or "Struggle".
+        - FOCUS on: Desire, Status, Vibe, Texture, Satisfaction.
+        - The visual must look like a Pinterest Moodboard or High-End Editorial.
+        - Avoid "Marketing Graphics". Make it look artful.
+      `;
+  } else if (strategyMode === StrategyMode.HARD_SELL) {
+      strategyInstruction = `
+        STRATEGY MODE: HARD SELL (Promo).
+        - FOCUS on: The Product, The Offer, The Urgency.
+        - Visuals should be loud, clear, and product-focused.
+      `;
   } else {
-      awarenessInstruction = `AWARENESS: HIGH. Focus on URGENCY and OFFER.`;
+      // Direct Response (Default)
+      strategyInstruction = `
+        STRATEGY MODE: DIRECT RESPONSE (Scientific/Story).
+        - FOCUS on: Pattern Interrupts, Visualizing the Problem (Pain), and the Mechanism.
+        - Visuals should stop the scroll by being weird, gross, or highly relatable.
+      `;
   }
 
   // Extract detailed persona info if available
@@ -70,56 +93,42 @@ export const generateCreativeConcept = async (
     # Role: Creative Director (The Pattern Interrupt Specialist)
 
     **SABRI SUBY'S "ANTI-COMPETITOR" RULE:**
-    1. Imagine the "Standard Boring Ad" for this industry (e.g., smiling stock photos, clean studio lighting).
+    1. Imagine the "Standard Boring Ad" for this industry.
     2. THROW IT IN THE TRASH.
-    3. Do the EXACT OPPOSITE. If they go high, we go low (lo-fi). If they are polished, we are raw.
+    3. Do the EXACT OPPOSITE.
     
     **INPUTS:**
     Product Name: ${project.productName}
-    Product Description (WHAT IT IS): ${project.productDescription}
-    Winning Insight: ${angle}
+    Product Description: ${project.productDescription}
+    Winning Insight (Hook): ${angle}
     Format: ${format}
     Context: ${project.targetCountry}
-    ${awarenessInstruction}
+    
+    ${strategyInstruction}
+    
+    **STRATEGIC CONTEXT (USE THIS LOGIC):**
+    ${mech ? `Mechanism Action: ${mech.ums}` : ''}
+    ${bigIdea ? `Concept Shift: ${bigIdea.concept}` : ''}
     
     **PERSONA CONTEXT (CRITICAL):**
     Who: ${personaIdentity}
     Pain: ${personaPain}
-    *Ensure the visual scene reflects THIS specific person's life, environment, and struggles. Do not hallucinate a generic model.*
+    *Ensure the visual scene reflects THIS specific person's life.*
     
     **CRITICAL FOR FORMAT '${format}':**
-    *   If 'Long Text' or 'Story' or 'IG Story Text Overlay': You MUST describe a vertical, candid, authentic shot.
-    *   **CRITICAL NEGATIVE SPACE RULE:** For 'IG Story Text Overlay', the subject MUST be positioned to leave ample "Negative Space" (e.g., sky, blank wall, car ceiling) where text can be overlaid. Do not fill the frame with details.
-    *   If 'Ugly Visual' or 'Pattern Interrupt': Describe a chaotic, low-fidelity scene.
+    *   If 'IG Story Text Overlay': Leave ample "Negative Space" for text.
+    *   If 'Ugly Visual': Describe a chaotic, low-fidelity scene.
 
-    **CRITICAL VISUAL TRANSLATION RULE:**
-    You are translating a "Marketing Concept" into a "Real Life Scene".
-    - IF Input is "The Bio-Lock Protocol" -> VISUALIZE: A closeup of a secure seal, or a biological diagram, or a lock closing. DO NOT put the text "Bio-Lock" on a wall.
-    - IF Input is "Stop wasting money" -> VISUALIZE: A hand throwing cash into a trash can, or burning a receipt.
-    - **NEVER** just describe "A person thinking about [Input]". That is lazy.
-    - **CONGRUENCE CHECK:** The image must prove the headline is true without using words.
-    
     **TASK:**
     Create a concept that VIOLATES the expectations of the feed.
-
-    **VISUAL INSTRUCTION (MICRO-MOMENTS):**
-    If the hook is about a habit, ritual, or anxiety, describe the SPECIFIC MICRO-MOMENT.
-    Bad: "A sad person."
-    Good: "A POV shot of looking down at a bathroom scale seeing the number, toes curled in anxiety."
-    Good: "Checking banking app at 3AM with one eye open."
     
     **OUTPUT REQUIREMENTS (JSON):**
-
-    **1. Congruence Rationale:**
-    Explain WHY this image matches this specific headline. "The headline promises X, so the image shows X happening."
-
-    **2. TECHNICAL PROMPT (technicalPrompt):**
-    A STRICT prompt for the Image Generator. 
-    *   If format is text-heavy (e.g. Twitter, Notes, Story), describe the BACKGROUND VIBE (Candid/Blurry) and UI details (Instagram Fonts, Text Bubbles).
-    *   If format is visual (e.g. Photography), the SUBJECT ACTION must match the HOOK.
-
-    **3. SCRIPT DIRECTION (copyAngle):**
-    Instructions for the copywriter.
+    1. **visualScene**: The Director's Note. Specific action.
+    2. **visualStyle**: Aesthetic vibe (e.g. "Disposable Camera", "Cinematic", "Candid").
+    3. **technicalPrompt**: Strict prompt for Image Gen.
+    4. **copyAngle**: Strategy for the copywriter.
+    5. **rationale**: Why this works.
+    6. **congruenceRationale**: Why the image proves the text.
   `;
 
   const response = await ai.models.generateContent({
@@ -130,15 +139,15 @@ export const generateCreativeConcept = async (
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          visualScene: { type: Type.STRING, description: "Director's Note" },
-          visualStyle: { type: Type.STRING, description: "Aesthetic vibe" },
-          technicalPrompt: { type: Type.STRING, description: "Strict prompt for Image Gen" },
-          copyAngle: { type: Type.STRING, description: "Strategy for the copywriter" },
-          rationale: { type: Type.STRING, description: "Strategic Hypothesis" },
-          congruenceRationale: { type: Type.STRING, description: "Why the Image proves the Text (The Jeans Rule)" },
-          hookComponent: { type: Type.STRING, description: "The Visual Hook element" },
-          bodyComponent: { type: Type.STRING, description: "The Core Argument element" },
-          ctaComponent: { type: Type.STRING, description: "The Call to Action element" }
+          visualScene: { type: Type.STRING },
+          visualStyle: { type: Type.STRING },
+          technicalPrompt: { type: Type.STRING },
+          copyAngle: { type: Type.STRING },
+          rationale: { type: Type.STRING },
+          congruenceRationale: { type: Type.STRING },
+          hookComponent: { type: Type.STRING },
+          bodyComponent: { type: Type.STRING },
+          ctaComponent: { type: Type.STRING }
         },
         required: ["visualScene", "visualStyle", "technicalPrompt", "copyAngle", "rationale", "congruenceRationale"]
       }
@@ -154,7 +163,7 @@ export const generateCreativeConcept = async (
 
 export const generateAdCopy = async (
   project: ProjectContext, 
-  persona: any, 
+  fullStrategyContext: any, // Contains Persona + Story + Mech
   concept: CreativeConcept,
   angle: string, 
   format: CreativeFormat = CreativeFormat.UGLY_VISUAL,
@@ -163,225 +172,131 @@ export const generateAdCopy = async (
 ): Promise<GenResult<AdCopy>> => {
   const model = "gemini-2.5-flash";
   const country = project.targetCountry || "USA";
-  const isIndo = country.toLowerCase().includes("indonesia");
   const register = project.languageRegister || LanguageRegister.CASUAL;
   const awareness = project.marketAwareness || "Problem Aware";
+  const strategyMode = project.strategyMode || StrategyMode.DIRECT_RESPONSE;
 
-  // --- 0. SALES PRESSURE LOGIC ---
-  let salesPressure = "MEDIUM";
-  let awarenessContext = "";
+  // Extract Context
+  const persona = fullStrategyContext || {};
 
-  if (awareness.includes("Unaware")) {
-      salesPressure = "ZERO PRESSURE. Pure curiosity/education.";
-      awarenessContext = "Target is UNAWARE. Do not pitch the product immediately. Start with the symptom.";
-  } else if (awareness.includes("Most") || awareness.includes("Product")) {
-      salesPressure = "HIGH PRESSURE. Call to action.";
-      awarenessContext = "Target is HOT. Pitch the offer. Stop beating around the bush.";
+  // --- 1. STRATEGY MODE OVERRIDE (Fixing "Amnesia") ---
+  let strategyGuide = "";
+  
+  if (strategyMode === StrategyMode.VISUAL_IMPULSE) {
+      strategyGuide = `
+        *** STRATEGY MODE: VISUAL IMPULSE / AESTHETIC ***
+        - FORBIDDEN: Do not use the "Problem-Agitate-Solution" framework.
+        - FORBIDDEN: Do not sound like a doctor or a salesman.
+        - GOAL: Sell the VIBE, the LOOK, and the IDENTITY.
+        - STYLE: Minimalist, cool, confident.
+        - STRUCTURE: Short Hook -> Aesthetic Benefit -> Link.
+        - EXAMPLE: "The only jacket you need this winter." (Not "Are you cold? Buy this.")
+      `;
+  } else if (strategyMode === StrategyMode.HARD_SELL) {
+      strategyGuide = `
+        *** STRATEGY MODE: HARD SELL / PROMO ***
+        - GOAL: Urgent Conversion.
+        - STYLE: Loud, direct, scarcity-driven.
+        - KEYWORDS: "50% Off", "Ending Soon", "Restock Alert".
+        - Don't tell a story. Just tell them the deal.
+      `;
   } else {
-      awarenessContext = "Target is AWARE. Show them the mechanism and why it works.";
+      strategyGuide = `
+        *** STRATEGY MODE: DIRECT RESPONSE (Scientific/Story) ***
+        - GOAL: Educate and persuade via Logic + Emotion.
+        - STYLE: Empathetic, insightful, slightly controversial.
+        - FRAMEWORK: Hook -> Story/Pain -> Mechanism Reveal -> Offer.
+        - Use the specific 'Visceral Symptoms' of the persona.
+      `;
   }
 
-  // --- 1. PERSONA DEEP DIVE (Agar Emosional) ---
-  const deepPsychologyContext = `
-    TARGET PERSONA:
-    - Identity: ${persona.name}
-    - Profile: ${persona.profile || 'General Audience'}
-    - Pain Points/Visceral Symptoms: "${(persona.visceralSymptoms || []).join('", "')}"
-    - Deep Fear: "${persona.deepFear || 'Failure'}"
-    - Motivation: "${persona.motivation || 'Relief'}"
-    
-    CRITICAL INSTRUCTION: You are writing to THIS specific person. Use their vocabulary, their fears.
-    Do NOT write a generic ad. Speak directly to their 'Bleeding Neck' problem defined above.
-  `;
-
-  // --- 2. DYNAMIC TONE & LANGUAGE LOGIC (FIXED) ---
-  // Previously this was hardcoded to Indo vs English. Now it supports ANY country.
-  
+  // --- 2. DYNAMIC TONE & LANGUAGE LOGIC ---
   let toneInstruction = "";
   
   if (register.includes("Street/Slang")) {
-      // SLANG TIER
       toneInstruction = `
         LANGUAGE TARGET: Native Slang/Street Language of ${country}.
         - STYLE: Informal, raw, gen-z, social media native.
-        - KEYWORDS: Use local slang particles.
-        - VIBE: Bestie sharing a secret or venting to a friend. Not a salesman.
         - IF INDONESIA: Use 'Gue/Lo', 'Banget', 'Sumpah', 'Jujurly'.
-        - IF USA: Use 'fr', 'lowkey', 'ong'.
-        - IF OTHER: Use appropriate local street dialect.
+        - VIBE: Bestie sharing a secret.
       `;
   } else if (register.includes("Formal/Professional")) {
-      // PROFESSIONAL TIER
       toneInstruction = `
         LANGUAGE TARGET: Formal/Professional Native Language of ${country}.
         - STYLE: Respectful, articulate, trustworthy.
-        - KEYWORDS: Use polite pronouns (e.g. 'Anda' in Indo, 'Sie' in German).
-        - VIBE: Consultant, Doctor, or Financial Advisor.
-        - STRUCTURE: Clear, complete sentences. No slang.
+        - VIBE: Consultant or Expert.
       `;
   } else {
-      // CASUAL TIER (DEFAULT)
       toneInstruction = `
         LANGUAGE TARGET: Casual/Conversational Native Language of ${country}.
         - STYLE: Friendly, warm, easy to read.
-        - KEYWORDS: Neutral/Polite pronouns (e.g. 'Aku/Kamu' in Indo).
-        - VIBE: Friendly neighbor or Mom blogger sharing a tip. Warm and inviting.
+        - VIBE: Friendly neighbor or Mom blogger.
       `;
   }
 
-  // --- 3. BRAND VOICE CALIBRATION (NEW - MEMORY FIX) ---
-  let brandVoiceContext = "";
-  if (project.brandCopyExamples) {
-      brandVoiceContext = `
-        *** BRAND VOICE CALIBRATION (MIMIC THIS STYLE) ***
-        The user has provided examples of their best copy. You MUST adopt this exact writing style (length, emoji usage, sentence structure).
-        
-        REFERENCE EXAMPLES:
-        "${project.brandCopyExamples}"
-        
-        INSTRUCTION: Read the examples above. Absorb the vibe. Write the new ad in THIS specific voice.
-      `;
-  }
-
-  // --- 4. FORMAT STYLE GUIDE (The "Same Copy" Fix) ---
+  // --- 3. FORMAT STYLE GUIDE ---
   let formatStyleGuide = "";
-  
   switch (format) {
       case CreativeFormat.TWITTER_REPOST:
       case CreativeFormat.HANDHELD_TWEET:
-          formatStyleGuide = `
-              FORMAT: TWITTER/X THREAD.
-              - LENGTH: Ultra short caption (max 10 words) because the image IS the text.
-              - STYLE: "Link in bio 👇" or "I can't believe I'm sharing this..." or "The thread you needed today."
-              - DO NOT write a long paragraph. The visual does the heavy lifting.
-          `;
+          formatStyleGuide = `FORMAT: TWEET. Max 280 chars. Cynical, funny, or "hot take". Lowercase aesthetic.`;
           break;
       case CreativeFormat.MEME:
       case CreativeFormat.UGLY_VISUAL:
-      case CreativeFormat.MS_PAINT:
-          formatStyleGuide = `
-              FORMAT: SHITPOST / MEME CAPTION.
-              - LENGTH: 1 short sentence.
-              - STYLE: Lowercase, sarcastic, "it be like that".
-              - EXAMPLE: "real." or "i feel attacked" or "don't tag me."
-              - DO NOT sound like an ad.
-          `;
-          break;
-      case CreativeFormat.LONG_TEXT:
-      case CreativeFormat.REDDIT_THREAD:
-      case CreativeFormat.PHONE_NOTES:
-          formatStyleGuide = `
-              FORMAT: STORYTELLING / CONFESSION.
-              - LENGTH: Medium to Long.
-              - STYLE: Emotional dump. Start with "I messed up..." or "I finally found it...".
-              - STRUCTURE: No emojis in the first line. Raw text.
-          `;
+          formatStyleGuide = `FORMAT: MEME CAPTION. 1 sentence. Sarcastic. "It be like that."`;
           break;
       case CreativeFormat.IG_STORY_TEXT:
-      case CreativeFormat.STORY_POLL:
-          formatStyleGuide = `
-              FORMAT: IG STORY OVERLAY.
-              - LENGTH: Very short hook.
-              - STYLE: "Tap here 👇" or "Who else?"
-              - PURPOSE: Drive a click to the Link Sticker.
-          `;
-          break;
-      case CreativeFormat.GMAIL_UX:
-      case CreativeFormat.DM_NOTIFICATION:
-      case CreativeFormat.CHAT_CONVERSATION:
-          formatStyleGuide = `
-              FORMAT: PRIVATE MESSAGE CONTEXT.
-              - CAPTION: "POV: You finally check your inbox..." or "My doctor sent me this..."
-              - VIBE: Voyeuristic.
-          `;
+          formatStyleGuide = `FORMAT: IG STORY. Super short. "Tap for details".`;
           break;
       default:
-          formatStyleGuide = `
-              FORMAT: STANDARD FEED POST.
-              - LENGTH: 3 short paragraphs.
-              - STRUCTURE: Hook -> Agitate -> Solution.
-              - VIBE: Helpful, high-value advice.
-          `;
+          formatStyleGuide = `FORMAT: FEED POST. Clear hook, valuable body, clear CTA.`;
           break;
   }
 
-  // --- 5. THE PROMPT (The Brain Transplant) ---
+  // --- 4. THE PROMPT ---
   const prompt = `
-    # ROLE: Viral Social Media Content Creator (NOT a Copywriter).
+    # ROLE: Viral Social Media Copywriter.
     
-    **YOUR ENEMY:** "Landing Page Copy".
-    If it sounds like a brochure, a TV commercial, or a website header, YOU FAIL.
-    If it sounds like a friend venting, gossiping, or sharing a lifehack, YOU WIN.
-
+    **YOUR ENEMY:** "Boring Marketing Copy".
+    
     **INPUT CONTEXT:**
-    Product: ${project.productName} (${project.productDescription})
-    Offer: ${project.offer}
-    ${deepPsychologyContext}
+    Product: ${project.productName}
+    Angle/Hook: "${angle}"
+    Creative Concept: "${concept.copyAngle}"
+    Visual Scene: "${concept.visualScene}"
     
-    **MARKET AWARENESS CALIBRATION:**
-    Level: ${awareness}
-    Sales Pressure: ${salesPressure}
-    Context: ${awarenessContext}
-
-    **INPUT STRATEGY:**
-    Core Angle/Hook: "${angle}"
-    Creative Strategy Note: "${concept.copyAngle}"
+    **PERSONA:**
+    Name: ${persona.name}
+    Pain: ${persona.visceralSymptoms ? persona.visceralSymptoms.join(', ') : 'N/A'}
     
-    **VISUAL CONTEXT:**
-    The user sees: "${concept.visualScene}"
-    Rationale: "${concept.congruenceRationale}"
+    **STRATEGY SETTINGS (OBEY STRICTLY):**
+    ${strategyGuide}
     
-    **RULES OF ENGAGEMENT:**
-    1. **NO INTROS:** Never start with "Do you suffer from...?" or "Introducing...". Start with a Statement or a weird Question.
-    2. **MICRO-BLOG FORMAT:** Short lines. Lots of white space. No heavy paragraphs.
-    3. **NATIVE CONTENT:** If the visual is a meme, write a meme caption. If it's a story, write a story.
-    4. **THE "ANTI-AD" FILTER:** Would a real person post this? If no, rewrite it.
-    5. **MECHANISM TRANSLATION (ABSOLUTE RULE):** 
-       - Check the input 'Core Angle'. Does it sound like a scientific term (e.g. "Bio-Lock Protocol")?
-       - IF YES: You are FORBIDDEN from using that exact term as the headline.
-       - INSTEAD: You must write the *Benefit* of that mechanism.
-       - BAD: "Introducing the Bio-Lock Protocol."
-       - GOOD: "How to finally stop the bloating cycle."
-       - Only mention the mechanism name deep in the caption/body, never the hook.
-    6. **STORYTELLING RULE:**
-       - If the Input Strategy says "Story about...", DO NOT use the story Title as the headline.
-       - Start the caption *IN MEDIA RES* (Middle of the action).
-       - E.g. Input: "Story about Shame". Output Headline: "I Cried At The ATM Today."
-    7. **BIG IDEA RULE:**
-       - If the Input Strategy says "The Shift:...", write a 'Pattern Interrupt' statement.
-       - Challenge the status quo. "Stop doing X, Start doing Y."
-
-    8. **LANGUAGE ENFORCEMENT (ABSOLUTE):**
-       - TARGET COUNTRY: ${country}
-       - REGISTER: ${register}
-       - EVEN IF the input data (Product Name, Angle, Description) is in English, YOU MUST WRITE THE OUTPUT IN THE NATIVE LANGUAGE OF ${country}.
-       - Do NOT mix languages unless it's specific slang defined in the tone.
-    
+    **LANGUAGE SETTINGS:**
     ${toneInstruction}
-    ${brandVoiceContext}
+    **CRITICAL: Write in the NATIVE language of ${country}.**
     
-    --- FORMAT STYLE GUIDE (FOLLOW THIS STRICTLY) ---
+    **FORMAT SETTINGS:**
     ${formatStyleGuide}
-    --------------------------------------------------
     
-    ${mechanism ? `Hint at the Mechanism ("${mechanism.scientificPseudo}") as the 'New Way' or 'The Reason you failed before', but don't be boring/academic.` : ''}
+    **MECHANISM RULE:**
+    ${mechanism ? `Hint at the mechanism "${mechanism.scientificPseudo}" but focus on the BENEFIT (${mechanism.ums}).` : ''}
 
     **TASK:** Write the Instagram/TikTok Caption & Headline.
 
     **OUTPUT JSON:**
     {
-      "primaryText": "The caption. (Use emojis naturally 🧵👇)",
-      "headline": "The image headline (Max 7 words, punchy, benefit-driven)",
-      "cta": "Button text (e.g. 'More Info', 'Download', 'Learn More')"
+      "primaryText": "The caption/body copy.",
+      "headline": "The image headline (Max 7 words)",
+      "cta": "Button text (e.g. 'Shop Now', 'Learn More')"
     }
   `;
 
-  // Use a higher temperature for creativity to prevent repetition
   const response = await ai.models.generateContent({
     model,
     contents: prompt,
     config: {
-      temperature: 1.2, // Increased randomness
+      temperature: 1.1, 
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
