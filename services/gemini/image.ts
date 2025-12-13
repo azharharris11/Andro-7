@@ -48,10 +48,12 @@ export const generateCreativeImage = async (
 
   const safety = getSafetyGuidelines(isUglyFormat);
 
-  let moodPrompt = "Lighting: Natural, inviting. Emotion: Positive.";
-  if (parsedAngle.isPainFocused || parsedAngle.isUrgent) {
-      moodPrompt = "Lighting: High contrast, dramatic shadows, moody. Emotion: Frustrated, Urgent, Serious.";
-  }
+  // FIX 2: VISUAL MOOD CONFLICT
+  // Removed the rigid "if (pain || urgent) { mood = dark }" logic. 
+  // This was causing "Product Aware" ads (Hero Shots) to look depressive just because they had urgency.
+  // Now we default to professional/neutral and let the specific format enhancers or Scene Description drive the mood.
+  let moodPrompt = "Lighting: Professional, high-quality, authentic to the scene. Emotion: Congruent with the action.";
+  
   if (isUglyFormat) {
      moodPrompt = "Lighting: Bad, amateur flash, or harsh fluorescent. Emotion: Authentic, candid.";
   }
@@ -77,6 +79,7 @@ export const generateCreativeImage = async (
   else if (format === CreativeFormat.CAROUSEL_REAL_STORY) appliedEnhancer = ENHANCERS.UGC;
 
   // 1. PREPARE FULL CONTEXT (Megaprompt Data)
+  // persona object passed here now contains the strategy data from App.tsx fix
   const fullStoryContext = {
       story: persona.storyData,
       mechanism: persona.mechanismData,

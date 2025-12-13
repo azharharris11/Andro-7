@@ -325,7 +325,16 @@ const App: React.FC = () => {
       setIsFormatSelectorOpen(false);
       handleUpdateNode(pendingFormatParentId, { isLoading: true });
       
-      const personaMeta = parentNode.meta || {}; 
+      // FIX 1: CURE CONTEXT AMNESIA
+      // We must construct a 'fullStrategyContext' that includes strategy data from the parent node.
+      // parentNode.meta usually contains persona data.
+      // parentNode.storyData, bigIdeaData, mechanismData exist on the node itself, not always in meta.
+      const fullStrategyContext = {
+          ...(parentNode.meta || {}),
+          storyData: parentNode.storyData,
+          bigIdeaData: parentNode.bigIdeaData,
+          mechanismData: parentNode.mechanismData
+      };
 
       const formatsToGen = Array.from(selectedFormats) as CreativeFormat[];
       let verticalOffset = 0;
@@ -384,7 +393,7 @@ const App: React.FC = () => {
           const fullAngle = formatSpecificAngle + formatSpecificContext;
 
           // 1. Concept
-          const conceptRes = await GeminiService.generateCreativeConcept(project, personaMeta, fullAngle, fmt);
+          const conceptRes = await GeminiService.generateCreativeConcept(project, fullStrategyContext, fullAngle, fmt);
           
           if (conceptRes.data) {
               const concept = conceptRes.data;
@@ -396,7 +405,7 @@ const App: React.FC = () => {
               
               if (fmt.includes('Carousel')) {
                    const slidesRes = await GeminiService.generateCarouselSlides(
-                       project, fmt, fullAngle, concept.visualScene, concept.visualStyle, concept.technicalPrompt, personaMeta,
+                       project, fmt, fullAngle, concept.visualScene, concept.visualStyle, concept.technicalPrompt, fullStrategyContext,
                        concept.congruenceRationale // Pass rationale
                    );
                    if (slidesRes.data && slidesRes.data.length > 0) {
@@ -406,7 +415,7 @@ const App: React.FC = () => {
                    }
               } else {
                    const imgRes = await GeminiService.generateCreativeImage(
-                       project, personaMeta, fullAngle, fmt, concept.visualScene, concept.visualStyle, concept.technicalPrompt, "1:1", undefined,
+                       project, fullStrategyContext, fullAngle, fmt, concept.visualScene, concept.visualStyle, concept.technicalPrompt, "1:1", undefined,
                        concept.congruenceRationale // Pass rationale
                    );
                    imageUrl = imgRes.data;
@@ -416,7 +425,7 @@ const App: React.FC = () => {
               // 3. Copy
               const isHVCO = parentNode.type === NodeType.HVCO_NODE;
               const copyRes = await GeminiService.generateAdCopy(
-                  project, personaMeta, concept, angleToUse, fmt, isHVCO, parentNode.mechanismData
+                  project, fullStrategyContext, concept, angleToUse, fmt, isHVCO, parentNode.mechanismData
               );
               
               if (copyRes.data) {
@@ -476,9 +485,19 @@ const App: React.FC = () => {
       handleUpdateNode(id, { isLoading: true });
       
       const concept = node.meta.concept;
+      
+      // FIX 3: REGENERATION LOGIC HOLE
+      // When regenerating, we must also pass the FULL strategy context found on the Creative node.
+      const fullStrategyContext = {
+          ...(node.meta || {}), // Contains persona data
+          storyData: node.storyData,
+          bigIdeaData: node.bigIdeaData,
+          mechanismData: node.mechanismData
+      };
+      
       // We reuse the concept but regenerate the image
       const imgRes = await GeminiService.generateCreativeImage(
-           project, node.meta, node.meta.angle, node.format!, 
+           project, fullStrategyContext, node.meta.angle, node.format!, 
            concept.visualScene, concept.visualStyle, concept.technicalPrompt, aspectRatio,
            undefined, concept.congruenceRationale // Pass rationale
       );
