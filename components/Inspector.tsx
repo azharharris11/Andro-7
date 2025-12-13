@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { NodeData, AdCopy, ProjectContext, CampaignStage } from '../types';
-import { X, ThumbsUp, MessageCircle, Share2, Globe, MoreHorizontal, Download, Smartphone, Layout, Sparkles, BrainCircuit, Mic, Play, Pause, Wand2, ChevronLeft, ChevronRight, Layers, RefreshCw, Archive, Clock, ShieldAlert, BarChart3, AlertTriangle, Activity, CheckCircle2, Video, Film, Loader2, DollarSign } from 'lucide-react';
+import { X, ThumbsUp, MessageCircle, Share2, Globe, MoreHorizontal, Download, Smartphone, Layout, Sparkles, BrainCircuit, Mic, Play, Pause, Wand2, ChevronLeft, ChevronRight, Layers, RefreshCw, Archive, Clock, ShieldAlert, BarChart3, AlertTriangle, Activity, CheckCircle2, Video, Film, Loader2, DollarSign, ChevronDown, ChevronUp, Copy, Eye, Fingerprint, BookOpen, Target, Cpu, Lightbulb, Palette, Megaphone, Type } from 'lucide-react';
 import { generateAdScript, generateVoiceover, generateVeoVideo, auditHeadlineSabri, generateMafiaOffer } from '../services/geminiService';
 
 interface InspectorProps {
@@ -39,6 +39,7 @@ const Inspector: React.FC<InspectorProps> = ({ node, onClose, onAnalyze, onUpdat
   const [isGeneratingMafia, setIsGeneratingMafia] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0); 
+  const [showPrompt, setShowPrompt] = useState(false);
   
   const isLabAsset = stage === CampaignStage.TESTING;
 
@@ -49,6 +50,23 @@ const Inspector: React.FC<InspectorProps> = ({ node, onClose, onAnalyze, onUpdat
   const allImages = imageUrl ? [imageUrl, ...(carouselImages || [])] : [];
   const hasCarousel = allImages.length > 1;
   
+  const technicalPrompt = node.meta?.concept?.technicalPrompt;
+  const rationale = node.meta?.concept?.rationale;
+  
+  // STRATEGY DNA EXTRACTION
+  const personaName = node.meta?.name || node.meta?.personaName || "General Audience";
+  const personaMotivation = node.meta?.motivation || "N/A";
+  const storyNarrative = node.storyData?.narrative || node.meta?.storyData?.narrative;
+  const bigIdea = node.bigIdeaData?.headline || node.meta?.bigIdeaData?.headline;
+  const mechanism = node.mechanismData?.scientificPseudo || node.meta?.mechanismData?.scientificPseudo;
+  const awarenessLevel = project?.marketAwareness || "Unknown";
+  
+  // Angle vs Hook Differentiation
+  const strategicAngle = node.meta?.angle || "Direct Benefit";
+  const executionHook = node.hookData || node.adCopy?.headline || node.title;
+  const formatUsed = node.format || "Standard";
+  const languageStyle = project?.languageRegister || "Casual";
+
   const handleNextSlide = () => {
     setCarouselIndex((prev) => (prev + 1) % allImages.length);
   };
@@ -179,9 +197,10 @@ const Inspector: React.FC<InspectorProps> = ({ node, onClose, onAnalyze, onUpdat
         <button onClick={() => setActiveTab('INSIGHTS')} className={`flex-1 py-1.5 text-xs font-bold rounded-md flex items-center justify-center gap-2 transition-all ${activeTab === 'INSIGHTS' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}><Activity className="w-3.5 h-3.5" /> Audit</button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+      <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 custom-scrollbar">
         {activeTab === 'PREVIEW' && (
             <>
+                {/* 1. AD PREVIEW */}
                 <div className="flex justify-between items-center mb-6">
                     <div className="flex bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
                         <button onClick={() => setAspectRatio('SQUARE')} className={`p-2 rounded transition-all ${aspectRatio === 'SQUARE' ? 'bg-slate-100 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`} title="Feed (1:1)"><Layout className="w-4 h-4" /></button>
@@ -258,6 +277,116 @@ const Inspector: React.FC<InspectorProps> = ({ node, onClose, onAnalyze, onUpdat
                          )}
                     </div>
                 )}
+                </div>
+
+                {/* 2. STRATEGIC FRAMEWORK BREAKDOWN (NEW & SUPER DETAILED) */}
+                <div className="mt-8 border-t border-slate-200 pt-6 animate-in slide-in-from-bottom-2 duration-300">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                             <Fingerprint className="w-4 h-4" /> Strategy & Framework DNA
+                        </h3>
+                        {testingTier && <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-1 rounded-full font-bold uppercase">{testingTier}</span>}
+                    </div>
+
+                    <div className="space-y-4">
+                        {/* A. IDENTITY MATRIX (Persona + Awareness) */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Target Persona</span>
+                                <div className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><Fingerprint className="w-3 h-3 text-teal-500"/> {personaName}</div>
+                                <div className="text-[10px] text-slate-500 mt-1 leading-tight line-clamp-2 italic">"{personaMotivation}"</div>
+                            </div>
+                            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                <span className="text-[9px] font-bold text-slate-400 uppercase block mb-1">Market Awareness</span>
+                                <div className="text-xs font-bold text-slate-700 flex items-center gap-1.5"><Activity className="w-3 h-3 text-blue-500"/> {awarenessLevel}</div>
+                            </div>
+                        </div>
+
+                        {/* B. LOGIC CHAIN (Story -> Big Idea -> Mechanism) */}
+                        {(storyNarrative || bigIdea || mechanism) && (
+                            <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm space-y-3">
+                                 {storyNarrative && (
+                                    <div>
+                                        <span className="text-[9px] font-bold text-orange-500 uppercase block mb-0.5 flex items-center gap-1"><BookOpen className="w-3 h-3"/> Core Story</span>
+                                        <p className="text-[11px] text-slate-600 leading-snug">"{storyNarrative}"</p>
+                                    </div>
+                                 )}
+                                 {bigIdea && (
+                                    <div>
+                                        <span className="text-[9px] font-bold text-yellow-600 uppercase block mb-0.5 flex items-center gap-1"><Lightbulb className="w-3 h-3"/> Big Idea</span>
+                                        <p className="text-[11px] text-slate-600 leading-snug">{bigIdea}</p>
+                                    </div>
+                                 )}
+                                 {mechanism && (
+                                    <div>
+                                        <span className="text-[9px] font-bold text-cyan-600 uppercase block mb-0.5 flex items-center gap-1"><Cpu className="w-3 h-3"/> Mechanism</span>
+                                        <p className="text-[11px] text-slate-600 leading-snug">{mechanism}</p>
+                                    </div>
+                                 )}
+                            </div>
+                        )}
+
+                        {/* C. EXECUTION CHECK (Angle vs Hook vs Tone) */}
+                        <div className="bg-indigo-50/50 rounded-lg border border-indigo-100 overflow-hidden">
+                             <div className="p-2 border-b border-indigo-100 flex justify-between items-center bg-indigo-50">
+                                 <span className="text-[9px] font-bold text-indigo-500 uppercase flex items-center gap-1"><Target className="w-3 h-3"/> Execution Alignment</span>
+                                 <span className="text-[9px] text-indigo-400 font-mono flex items-center gap-1"><Layout className="w-3 h-3"/> {formatUsed}</span>
+                             </div>
+                             <div className="p-2.5 space-y-2">
+                                 <div>
+                                     <span className="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">Strategic Angle (Input)</span>
+                                     <div className="text-xs font-medium text-indigo-900 leading-snug">"{strategicAngle}"</div>
+                                 </div>
+                                 
+                                 {executionHook && executionHook !== strategicAngle && (
+                                     <div className="pt-2 border-t border-indigo-100/50">
+                                         <span className="text-[9px] font-bold text-pink-500 uppercase block mb-0.5">Actual Hook (Output)</span>
+                                         <div className="text-xs text-slate-600">"{executionHook}"</div>
+                                     </div>
+                                 )}
+
+                                 <div className="pt-2 border-t border-indigo-100/50 flex gap-2">
+                                     <span className="px-1.5 py-0.5 bg-white rounded border border-indigo-100 text-[9px] text-indigo-600 font-bold">{languageStyle}</span>
+                                     {project?.brandVoice && <span className="px-1.5 py-0.5 bg-white rounded border border-indigo-100 text-[9px] text-indigo-600 font-bold">{project.brandVoice}</span>}
+                                 </div>
+                             </div>
+                        </div>
+
+                        {/* D. VISUAL RATIONALE */}
+                        {rationale && (
+                            <div className="p-3 bg-amber-50/50 rounded-lg border border-amber-100">
+                                <span className="text-[9px] font-bold text-amber-600 uppercase block mb-1 flex items-center gap-1"><Eye className="w-3 h-3"/> Creative Logic</span>
+                                <p className="text-[11px] text-slate-600 italic leading-relaxed">"{rationale}"</p>
+                            </div>
+                        )}
+
+                        {/* E. TECHNICAL PROMPT (Toggle) */}
+                        {technicalPrompt && (
+                            <div className="border border-slate-200 rounded-lg overflow-hidden">
+                                <button 
+                                    onClick={() => setShowPrompt(!showPrompt)} 
+                                    className="w-full flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100 transition-colors"
+                                >
+                                    <span className="text-[10px] font-bold text-slate-500 flex items-center gap-2">
+                                        <Sparkles className="w-3 h-3 text-purple-500" /> View Generation Prompt
+                                    </span>
+                                    {showPrompt ? <ChevronUp className="w-3 h-3 text-slate-400"/> : <ChevronDown className="w-3 h-3 text-slate-400"/>}
+                                </button>
+                                {showPrompt && (
+                                    <div className="p-3 bg-slate-900 text-slate-300 font-mono text-[10px] leading-relaxed relative group">
+                                         {technicalPrompt}
+                                         <button 
+                                            onClick={() => navigator.clipboard.writeText(technicalPrompt)}
+                                            className="absolute top-2 right-2 p-1.5 bg-white/10 hover:bg-white/20 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                            title="Copy Prompt"
+                                         >
+                                            <Copy className="w-3 h-3" />
+                                         </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </>
         )}
