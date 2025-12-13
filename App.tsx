@@ -366,15 +366,17 @@ const App: React.FC = () => {
               let imageUrl: string | null = null;
               let carouselImages: string[] = [];
               let imageTokens = 0;
+              let finalGenerationPrompt = "";
               
               if (fmt.includes('Carousel')) {
                    const slidesRes = await GeminiService.generateCarouselSlides(
                        project, fmt, angleToUse, concept.visualScene, concept.visualStyle, concept.technicalPrompt, fullStrategyContext,
                        concept.congruenceRationale // Pass rationale
                    );
-                   if (slidesRes.data && slidesRes.data.length > 0) {
-                       imageUrl = slidesRes.data[0];
-                       carouselImages = slidesRes.data;
+                   if (slidesRes.data && slidesRes.data.imageUrls.length > 0) {
+                       imageUrl = slidesRes.data.imageUrls[0];
+                       carouselImages = slidesRes.data.imageUrls;
+                       finalGenerationPrompt = slidesRes.data.prompts[0]; // Take first slide prompt as main
                        imageTokens = slidesRes.inputTokens + slidesRes.outputTokens;
                    }
               } else {
@@ -382,7 +384,8 @@ const App: React.FC = () => {
                        project, fullStrategyContext, angleToUse, fmt, concept.visualScene, concept.visualStyle, concept.technicalPrompt, "1:1", undefined,
                        concept.congruenceRationale // Pass rationale
                    );
-                   imageUrl = imgRes.data;
+                   imageUrl = imgRes.data.imageUrl;
+                   finalGenerationPrompt = imgRes.data.finalPrompt;
                    imageTokens = imgRes.inputTokens + imgRes.outputTokens;
               }
 
@@ -402,7 +405,8 @@ const App: React.FC = () => {
                        imageUrl: imageUrl || undefined,
                        carouselImages: carouselImages.length > 1 ? carouselImages : undefined,
                        adCopy: copyRes.data,
-                       meta: { ...parentNode.meta, angle: angleToUse, concept },
+                       // Store Final Mega Prompt here for inspection
+                       meta: { ...parentNode.meta, angle: angleToUse, concept, finalGenerationPrompt },
                        // Inherit megaprompt data if exists
                        storyData: parentNode.storyData,
                        bigIdeaData: parentNode.bigIdeaData,
@@ -466,7 +470,12 @@ const App: React.FC = () => {
            undefined, concept.congruenceRationale // Pass rationale
       );
       
-      handleUpdateNode(id, { isLoading: false, imageUrl: imgRes.data || node.imageUrl });
+      // Save new URL AND new Prompt
+      handleUpdateNode(id, { 
+          isLoading: false, 
+          imageUrl: imgRes.data.imageUrl || node.imageUrl,
+          meta: { ...node.meta, finalGenerationPrompt: imgRes.data.finalPrompt } 
+      });
   };
 
   const vaultNodes = nodes.filter(n => n.stage === CampaignStage.SCALING);

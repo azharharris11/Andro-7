@@ -50,7 +50,8 @@ const Inspector: React.FC<InspectorProps> = ({ node, onClose, onAnalyze, onUpdat
   const allImages = imageUrl ? [imageUrl, ...(carouselImages || [])] : [];
   const hasCarousel = allImages.length > 1;
   
-  const technicalPrompt = node.meta?.concept?.technicalPrompt;
+  // FIX: Prioritize the "Final Mega Prompt" if available, otherwise fallback to concept prompt
+  const technicalPrompt = node.meta?.finalGenerationPrompt || node.meta?.concept?.technicalPrompt;
   const rationale = node.meta?.concept?.rationale;
   
   // STRATEGY DNA EXTRACTION
@@ -360,7 +361,7 @@ const Inspector: React.FC<InspectorProps> = ({ node, onClose, onAnalyze, onUpdat
                             </div>
                         )}
 
-                        {/* E. TECHNICAL PROMPT (Toggle) */}
+                        {/* E. TECHNICAL PROMPT (Toggle) - UPDATED TO SHOW MEGA PROMPT */}
                         {technicalPrompt && (
                             <div className="border border-slate-200 rounded-lg overflow-hidden">
                                 <button 
@@ -368,7 +369,7 @@ const Inspector: React.FC<InspectorProps> = ({ node, onClose, onAnalyze, onUpdat
                                     className="w-full flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100 transition-colors"
                                 >
                                     <span className="text-[10px] font-bold text-slate-500 flex items-center gap-2">
-                                        <Sparkles className="w-3 h-3 text-purple-500" /> View Generation Prompt
+                                        <Sparkles className="w-3 h-3 text-purple-500" /> View Generation Prompt (Final)
                                     </span>
                                     {showPrompt ? <ChevronUp className="w-3 h-3 text-slate-400"/> : <ChevronDown className="w-3 h-3 text-slate-400"/>}
                                 </button>

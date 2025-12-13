@@ -12,6 +12,7 @@ import {
 } from "./imageUtils";
 import { generateAIWrittenPrompt } from "./imagePrompts";
 
+// Updated return type to include finalPrompt
 export const generateCreativeImage = async (
   project: ProjectContext,
   persona: any,
@@ -23,7 +24,7 @@ export const generateCreativeImage = async (
   aspectRatio: string = "1:1",
   referenceImageBase64?: string,
   congruenceRationale?: string
-): Promise<GenResult<string | null>> => {
+): Promise<GenResult<{ imageUrl: string | null; finalPrompt: string }>> => {
   
   // LOGIC TO SWITCH MODELS
   // standard -> 'gemini-2.5-flash-image'
@@ -48,10 +49,6 @@ export const generateCreativeImage = async (
 
   const safety = getSafetyGuidelines(isUglyFormat);
 
-  // FIX 2: VISUAL MOOD CONFLICT
-  // Removed the rigid "if (pain || urgent) { mood = dark }" logic. 
-  // This was causing "Product Aware" ads (Hero Shots) to look depressive just because they had urgency.
-  // Now we default to professional/neutral and let the specific format enhancers or Scene Description drive the mood.
   let moodPrompt = "Lighting: Professional, high-quality, authentic to the scene. Emotion: Congruent with the action.";
   
   if (isUglyFormat) {
@@ -79,7 +76,6 @@ export const generateCreativeImage = async (
   else if (format === CreativeFormat.CAROUSEL_REAL_STORY) appliedEnhancer = ENHANCERS.UGC;
 
   // 1. PREPARE FULL CONTEXT (Megaprompt Data)
-  // persona object passed here now contains the strategy data from App.tsx fix
   const fullStoryContext = {
       story: persona.storyData,
       mechanism: persona.mechanismData,
@@ -88,14 +84,14 @@ export const generateCreativeImage = async (
 
   const ctx: PromptContext = {
       project, format, parsedAngle, visualScene, visualStyle, technicalPrompt, 
-      textCopyInstruction: "", // No longer used
+      textCopyInstruction: "", 
       personaVisuals, moodPrompt, culturePrompt, subjectFocus, 
       enhancer: appliedEnhancer,
       safety,
       fullStoryContext,
       congruenceRationale,
-      aspectRatio
-      // embeddedText is handled by the Unified Prompt Engine now
+      aspectRatio,
+      rawPersona: persona
   };
 
   // 2. INVOKE UNIFIED PROMPT ENGINE
@@ -135,13 +131,13 @@ export const generateCreativeImage = async (
         }
     }
     return {
-      data: imageUrl,
+      data: { imageUrl, finalPrompt },
       inputTokens: response.usageMetadata?.promptTokenCount || 0,
       outputTokens: response.usageMetadata?.candidatesTokenCount || 0
     };
   } catch (error) {
     console.error("Image Gen Error", error);
-    return { data: null, inputTokens: 0, outputTokens: 0 };
+    return { data: { imageUrl: null, finalPrompt }, inputTokens: 0, outputTokens: 0 };
   }
 };
 
@@ -154,8 +150,9 @@ export const generateCarouselSlides = async (
   technicalPrompt: string,
   persona: any,
   congruenceRationale?: string
-): Promise<GenResult<string[]>> => {
+): Promise<GenResult<{ imageUrls: string[]; prompts: string[] }>> => {
   const slides: string[] = [];
+  const prompts: string[] = [];
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
 
@@ -184,13 +181,14 @@ export const generateCarouselSlides = async (
   const results = await Promise.all(promises);
 
   results.forEach(res => {
-      if (res.data) slides.push(res.data);
+      if (res.data.imageUrl) slides.push(res.data.imageUrl);
+      prompts.push(res.data.finalPrompt);
       totalInputTokens += res.inputTokens;
       totalOutputTokens += res.outputTokens;
   });
 
   return {
-      data: slides,
+      data: { imageUrls: slides, prompts },
       inputTokens: totalInputTokens,
       outputTokens: totalOutputTokens
   };

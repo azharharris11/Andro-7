@@ -1,131 +1,102 @@
-
 import { CreativeFormat, StrategyMode } from "../../types";
 import { PromptContext, ENHANCERS, getSafetyGuidelines } from "./imageUtils";
 import { ai } from "./client";
 
 /**
- * AI PROMPT WRITER (UNIFIED ENGINE)
- * Uses the LLM to synthesize strategy into a high-fidelity image prompt + embedded text.
+ * AI PROMPT WRITER (REVISED - CONTEXT AWARE ENGINE)
+ * Refactored to leverage full context reasoning instead of rigid string templates.
  */
 export const generateAIWrittenPrompt = async (ctx: PromptContext): Promise<string> => {
     const { 
         project, format, parsedAngle, 
         fullStoryContext, enhancer, safety, visualScene,
-        // FIX: Ingesting the previously "Lost" context variables
         personaVisuals, moodPrompt, culturePrompt,
-        congruenceRationale, aspectRatio
+        congruenceRationale, aspectRatio, rawPersona
     } = ctx;
 
-    const story = fullStoryContext?.story;
-    const mechanism = fullStoryContext?.mechanism;
-    const bigIdea = fullStoryContext?.bigIdea;
-    
-    // Konteks Hook Utama
-    const mainHook = parsedAngle.cleanAngle;
-    const strategyContext = parsedAngle.context; // Fix 1: The "Hidden Context"
-    
-    const brandVoice = project.brandVoice || "Adaptable";
-
-    // --- FIX 3: CONDITIONAL VISUAL CLEANLINESS ---
+    // 1. STRATEGY MODE LOGIC (Visual Direction)
+    // Menentukan arah visual tanpa hardcode string panjang di awal
     const isHardSell = project.strategyMode === StrategyMode.HARD_SELL;
     const isVisualImpulse = project.strategyMode === StrategyMode.VISUAL_IMPULSE;
-    
-    // If selling hard or doing aesthetic vibes, DO NOT show the messy persona world.
-    let sceneEnvironment = "";
-    if (isHardSell || isVisualImpulse) {
-        sceneEnvironment = `
-        B. **SCENE CONTEXT (CLEAN/AESTHETIC):**
-        - ENVIRONMENT: Clean, Professional, Studio or High-End Lifestyle background.
-        - FOCUS: The Product is the main hero. DO NOT add clutter or messy props.
-        - LIGHTING: Bright, Commercial, Appetizing.
-        - VIBE: ${isHardSell ? 'High Urgency, Retail, Shopping' : 'Luxurious, Calm, Aspirational'}.
-        `;
+
+    let visualDirective = "";
+    if (isHardSell) {
+        visualDirective = "MODE: HARD SELL. Focus purely on PRODUCT HERO SHOT. High urgency, retail vibe, bright commercial lighting. NO clutter.";
+    } else if (isVisualImpulse) {
+        visualDirective = "MODE: VISUAL IMPULSE. Focus on AESTHETIC & VIBE. Pinterest/Instagram style, luxurious, aspirational. Product must look desirable.";
     } else {
-        sceneEnvironment = `
-        B. **PERSONA WORLD (Environmental Props):** 
-        ${personaVisuals}
-        (CRITICAL: These specific objects/mess/clutter MUST appear in the background to signal we know the user's private life).
-        `;
+        // Direct Response / Story Mode
+        visualDirective = "MODE: STORYTELLING / REALISM. Focus on the PERSONA'S REALITY. Background must show the 'messy' private life props defined in context. Authentic, raw, emotional.";
     }
 
+    // 2. CONSTRUCT STRUCTURED CONTEXT (JSON Payload)
+    // Kita berikan "Otak" strategi ke AI dalam bentuk data terstruktur agar AI bisa "berpikir".
+    const strategicContext = {
+        campaign: {
+            product: project.productName,
+            description: project.productDescription,
+            marketAwareness: project.marketAwareness,
+            brandVoice: project.brandVoice || "Adaptable"
+        },
+        persona: {
+            identity: rawPersona?.profile || "General Audience",
+            pain: rawPersona?.visceralSymptoms || [],
+            motivation: rawPersona?.motivation,
+            worldVisuals: personaVisuals // AI reads this to populate the background
+        },
+        narrative: {
+            hook: parsedAngle.cleanAngle,
+            story: fullStoryContext?.story?.narrative,
+            mechanism: fullStoryContext?.mechanism?.scientificPseudo,
+            bigIdea: fullStoryContext?.bigIdea?.concept
+        },
+        execution: {
+            format: format,
+            baseScene: visualScene, // The core action required
+            mood: moodPrompt,
+            culture: culturePrompt,
+            aspectRatio: aspectRatio,
+            logic: congruenceRationale
+        }
+    };
+
+    // 3. THE MASTER PROMPT
     const systemPrompt = `
-    ROLE: Hybrid Creative Director & Copywriter (Direct Response Expert).
+    ROLE: World-Class AI Prompt Engineer & Creative Director.
     
-    You are generating a FINAL IMAGE PROMPT for a Generative AI model (like Midjourney/Flux).
-    You must define BOTH the **Visual Scene** AND the **Text Overlay/UI Content** in one cohesive description.
+    TASK: Synthesize the provided [STRATEGIC CONTEXT] into a single, high-fidelity Image Generation Prompt.
     
-    --- 1. STRATEGIC INPUTS ---
-    PRODUCT: ${project.productName} (${project.productDescription})
-    TARGET AUDIENCE: ${project.targetAudience} in ${project.targetCountry}
-    FORMAT REQUIRED: ${format}
+    --- INPUT DATA (READ CAREFULLY) ---
+    ${JSON.stringify(strategicContext, null, 2)}
     
-    CORE HOOK: "${mainHook}"
-    STRATEGY CONTEXT (MUST FOLLOW): "${strategyContext}"
-    (If Strategy Context says 'Do not visualize X', OBEY IT. It is the override).
+    --- DIRECTIVES ---
+    1. **VISUAL STRATEGY:** ${visualDirective}
+    2. **TECHNICAL SPECS:** ${enhancer}
     
-    DEEP PAIN (Story): "${story?.narrative || 'General frustration'}"
-    THE SOLUTION (Mechanism): "${mechanism?.scientificPseudo || 'New Technology'}"
-    
-    --- 2. VISUAL CONSTRAINTS (NON-NEGOTIABLE) ---
-    You are NOT starting from a blank canvas. You MUST incorporate these specific details calculated from the Persona's psychology:
-    
-    A. **THE SCENE ACTION (Base Layer):** 
-    "${visualScene}"
-    (Use this action as the core subject. Do not hallucinate a totally different scene. Adapt THIS scene into the Format below).
-    
-    ${sceneEnvironment}
+    --- INSTRUCTIONS ---
+    You must output a raw prompt string that covers these 3 layers:
 
-    C. **MOOD & LIGHTING:** 
-    ${moodPrompt}
+    **LAYER 1: THE SUBJECT & ACTION**
+    - Based on 'execution.baseScene'.
+    - If Strategy is 'Hard Sell', make the Product the hero.
+    - If Strategy is 'Story', make the Persona the hero and place them in their 'worldVisuals'.
 
-    D. **CULTURAL SETTING:** 
-    ${culturePrompt}
+    **LAYER 2: THE ATMOSPHERE**
+    - Combine 'execution.mood', 'execution.culture', and 'campaign.brandVoice'.
+    - Ensure lighting and color grading match the emotion of the 'persona.pain' or 'narrative.hook'.
 
-    E. **BRAND VOICE CALIBRATION:**
-    Brand Voice: "${brandVoice}"
-    (INSTRUCTION: Balance the 'Format' style with this 'Brand Voice'. 
-     - If Voice is 'Professional' but Format is 'Meme': Make a clean, witty, high-brow meme. NOT a trashy/ugly meme.
-     - If Voice is 'Raw' and Format is 'Professional': Add grit and texture to the professional shot.)
-     
-    F. **CONGRUENCE RATIONALE (LOGIC):**
-    "${congruenceRationale || 'Ensure image matches headline'}"
-    (Why this image proves the hook is true. Ensure this logic is visually present).
+    **LAYER 3: TEXT & UI (CRITICAL)**
+    - Format is '${format}'.
+    - If format requires UI (e.g., Native UI, Tweets, Notifications), describe the UI elements precisely.
+    - **COPYWRITING:** You must WRITE the text that appears in the image.
+      - Extract the core message from 'narrative.hook'.
+      - Adapt the tone to the 'campaign.brandVoice' (e.g., if Slang, use slang).
+      - FORMAT: Use the syntax 'RENDER TEXT: "Your Copy Here"'.
 
-    G. **COMPOSITION & CANVAS (ASPECT RATIO: ${aspectRatio}):**
-    ${aspectRatio === '9:16' 
-      ? 'VERTICAL FORMAT (Story/Reels). CRITICAL: Leave significant "Negative Space" at the top and bottom (20%) for UI overlays. Center subject in the middle band. Do not crop important details on edges.' 
-      : 'SQUARE FORMAT (Feed). CRITICAL: Center the subject. Balanced composition.'}
-    
-    --- 3. LOGIC ROUTING & FORMAT INSTRUCTIONS ---
-    
-    **CASE 1: IF FORMAT IS 'NATIVE UI' (Twitter, Chat, Notification, IG Story, Reddit)**
-    - GOAL: Extreme Authenticity. Must look like a real screenshot.
-    - VISUAL: Describe the specific UI elements (Dark mode? Blue bubbles? User avatar?).
-    - COPYWRITING TASK: Write the specific text content inside the screenshot.
-      - Do NOT just write the Hook. Adapt the Hook into a tweet, a DM, or a confession.
-      - Use the 'Mechanism' logic in the text naturally (e.g., "I can't believe [Mechanism] actually fixed it").
-      - Make it sound human, imperfect, and emotional (matches the 'Deep Pain').
-    - PROMPT STRUCTURE START: "A realistic screenshot of a [Format Name]..."
-    
-    **CASE 2: IF FORMAT IS 'UGLY / MEME' (MS Paint, Ugly Visual)**
-    - GOAL: Pattern Interrupt. 
-    - VISUAL: Describe the visual style. 
-      - If Brand Voice is 'Professional', make it a "Chart" or "Diagram" or "Clean Text" meme.
-      - If Brand Voice is 'Casual/Raw', make it "MS Paint style", "pixelated", "harsh flash".
-    - COPYWRITING TASK: Write a top/bottom caption or a simple text label.
-      - Use the 'Big Idea' sarcasm.
-      - Example Text: "Me trying to fix [Problem] without [Mechanism]".
-    
-    **CASE 3: IF FORMAT IS 'CINEMATIC / PHOTOGRAPHY'**
-    - GOAL: High Emotion & Atmosphere.
-    - VISUAL: Synthesize the 'Persona World' props into the 'Scene Action'. 
-    - COPYWRITING TASK: Place the 'Core Hook' naturally in the scene (e.g. Neon sign, Text on a sticky note, Phone screen notification).
-    - ADD TECHNICAL SPECS: ${enhancer}
-    
-    --- FINAL OUTPUT INSTRUCTION ---
-    Write ONLY the raw prompt string. 
-    You MUST include the specific text you wrote using the phrase: 'RENDER TEXT: "Your Written Copy Here"'.
-    Include the Safety Guidelines at the end: ${safety}
+    --- CONSTRAINTS ---
+    - Do not explain your reasoning. Just output the prompt.
+    - ${aspectRatio === '9:16' ? 'Ensure vertical composition with negative space for UI.' : 'Ensure balanced square composition.'}
+    - SAFETY: ${safety}
     `;
 
     try {
@@ -137,7 +108,6 @@ export const generateAIWrittenPrompt = async (ctx: PromptContext): Promise<strin
         return response.text?.trim() || "";
     } catch (e) {
         console.error("Unified Prompt Gen Failed", e);
-        // Fallback simple prompt jika error
-        return `A creative ad for ${project.productName} in style of ${format}. RENDER TEXT: "${mainHook}"`; 
+        return `High quality photo of ${project.productName}, ${visualScene}. RENDER TEXT: "${parsedAngle.cleanAngle}"`; 
     }
 };

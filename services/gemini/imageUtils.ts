@@ -24,6 +24,9 @@ export interface PromptContext {
     enhancer: string;
     safety?: string;
     
+    // NEW: Raw Persona Data for Deep Context
+    rawPersona?: any;
+
     // NEW: Deep Context for AI Prompt Writer
     fullStoryContext?: {
         story?: any;
