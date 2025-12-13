@@ -1,6 +1,6 @@
 
 import { Type } from "@google/genai";
-import { ProjectContext, GenResult, StoryOption, LanguageRegister } from "../../types";
+import { ProjectContext, GenResult, StoryOption, LanguageRegister, MarketAwareness } from "../../types";
 import { ai, extractJSON } from "./client";
 
 // Helper for consistent language instruction
@@ -38,31 +38,58 @@ export const generateStoryResearch = async (project: ProjectContext): Promise<Ge
   const model = "gemini-2.5-flash";
   const register = project.languageRegister || LanguageRegister.CASUAL;
   const langInstruction = getLanguageInstruction(project.targetCountry || "USA", register);
+  const awareness = project.marketAwareness || MarketAwareness.PROBLEM_AWARE;
+
+  // LOGIC CONNECT: Adjust Story Type based on Awareness
+  let storyTypeInstruction = "";
+  if (awareness === MarketAwareness.UNAWARE || awareness === MarketAwareness.PROBLEM_AWARE) {
+      storyTypeInstruction = `
+        AWARENESS LEVEL: LOW (Top of Funnel).
+        TASK: Find "Struggle Stories" or "Confessions".
+        - The character DOES NOT know the solution yet.
+        - They are venting about the PAIN/SYMPTOMS.
+        - EMOTION: Frustration, Shame, Confusion.
+        - SOURCE VIBE: r/TrueOffMyChest, Quora, Curhat Threads.
+      `;
+  } else if (awareness === MarketAwareness.SOLUTION_AWARE) {
+      storyTypeInstruction = `
+        AWARENESS LEVEL: MEDIUM (Middle of Funnel).
+        TASK: Find "Discovery Stories" or "Comparison Stories".
+        - The character has tried other things that FAILED.
+        - "I tried Keto/Yoga/Pills but it didn't work, until I realized..."
+        - EMOTION: Skepticism turning into Hope.
+      `;
+  } else {
+      storyTypeInstruction = `
+        AWARENESS LEVEL: HIGH (Bottom of Funnel).
+        TASK: Find "Success Stories" or "Raving Reviews".
+        - The character is already using ${project.productName}.
+        - "I was skeptical, but after 7 days..."
+        - EMOTION: Relief, Joy, Excitement.
+        - SOURCE VIBE: Trustpilot, verified reviews, UGC Testimonials.
+      `;
+  }
 
   const prompt = `
-    ROLE: Data Miner / Reddit Researcher
+    ROLE: Data Miner / Consumer Researcher
     
-    TASK: Find/Generate 3 distinct "Unaware" Stories related to: ${project.productName}.
-    These stories should sound like highly emotional, raw Reddit threads or Forum posts (e.g., r/TrueOffMyChest, r/Relationships).
+    PRODUCT CONTEXT:
+    ${project.productName}: ${project.productDescription}
+    
+    ${storyTypeInstruction}
     
     CRITICAL RULE:
-    - The stories must be about the PROBLEM/SYMPTOM. 
-    - Do NOT mention the product or solution yet. 
-    - Focus on the "Bleeding Neck" pain.
     - Context: ${project.targetCountry || "General"}.
+    - Make the stories sound REAL and RAW. No marketing fluff.
     
     ${langInstruction}
     **IMPORTANT: The 'title' and 'narrative' MUST be written in the Target Language defined above.**
     
-    INPUT DATA:
-    Target Audience: ${project.targetAudience}
-    Deep Pain: ${project.productDescription}
-
     OUTPUT JSON:
-    Return 3 stories.
-    - title: Catchy Reddit-style title.
-    - narrative: A 2-3 sentence summary of the story/struggle.
-    - emotionalTheme: The core emotion (e.g., "Shame", "Anger", "Exhaustion").
+    Return 3 distinct stories.
+    - title: Catchy title (like a forum post subject line).
+    - narrative: A 2-3 sentence summary of the story.
+    - emotionalTheme: The core emotion (e.g., "Shame", "Relief", "Anger").
   `;
 
   const response = await ai.models.generateContent({
@@ -102,6 +129,7 @@ export const analyzeVoiceOfCustomer = async (rawText: string, project: ProjectCo
     
     CONTEXT:
     We are analyzing raw market feedback for: ${project.productName}.
+    Product Description: ${project.productDescription}
     
     RAW DATA:
     "${rawText.substring(0, 50000)}" 
@@ -151,10 +179,10 @@ export const generatePersonas = async (project: ProjectContext): Promise<GenResu
     
     PRODUCT CONTEXT:
     Product: ${project.productName}
-    Details: ${project.productDescription}
+    Details (SOURCE OF TRUTH): ${project.productDescription}
     
     TASK:
-    Define 3 distinct "Avatars" based on their IDENTITY and DEEP PSYCHOLOGICAL NEEDS.
+    Define 3 distinct "Avatars" based on their IDENTITY and DEEP PSYCHOLOGICAL NEEDS related to this product.
     
     THE DIAGNOSIS PRINCIPLE:
     "If you can articulate someone's problem better than they can, they instinctively believe you can solve it."

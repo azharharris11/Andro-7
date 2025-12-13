@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { Globe, ImageIcon, Upload, X, Target, ChevronDown, MessageSquare, Mic } from 'lucide-react';
+import { Globe, ImageIcon, Upload, X, Target, ChevronDown, MessageSquare, Mic, Camera } from 'lucide-react';
 import { ProjectContext, MarketAwareness, FunnelStage, CopyFramework, LanguageRegister } from '../types';
 import { analyzeImageContext, analyzeLandingPageContext } from '../services/geminiService';
 import { scrapeLandingPage } from '../services/firecrawlService';
@@ -245,6 +245,23 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, project, onU
                                 {Object.values(CopyFramework).map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
+                    </div>
+                    {/* NEW: IMAGE MODEL SELECTION */}
+                    <div className="col-span-2 p-4 bg-purple-50 rounded-xl border border-purple-100">
+                        <label className="text-xs font-bold text-purple-700 uppercase mb-1 block flex items-center gap-2">
+                            <Camera className="w-3.5 h-3.5"/> Image Generation Model
+                        </label>
+                        <select 
+                            className="w-full bg-white border border-purple-200 rounded-lg px-3 py-2 text-sm cursor-pointer hover:border-purple-300 transition-colors text-purple-900" 
+                            value={project.imageModel || 'standard'} 
+                            onChange={(e) => onUpdateProject({ imageModel: e.target.value as any })}
+                        >
+                            <option value="standard">Standard (Gemini 2.5 Flash) - Fast</option>
+                            <option value="pro">Nano Banana Pro (Gemini 3 Pro) - High Quality</option>
+                        </select>
+                        <p className="text-[10px] text-purple-600/70 mt-1.5">
+                            <b>Standard:</b> Faster, good for iteration. <b>Pro:</b> Higher fidelity, better text rendering, but slightly slower.
+                        </p>
                     </div>
                 </div>
                 <div className="h-px bg-slate-100 my-8"></div>

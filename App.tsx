@@ -26,7 +26,8 @@ const initialProject: ProjectContext = {
   targetCountry: "USA",
   marketAwareness: MarketAwareness.PROBLEM_AWARE,
   funnelStage: FunnelStage.TOF,
-  languageRegister: LanguageRegister.CASUAL
+  languageRegister: LanguageRegister.CASUAL,
+  imageModel: 'standard' // Default
 };
 
 const initialNodes: NodeData[] = [

@@ -1,3 +1,4 @@
+
 import { Type } from "@google/genai";
 import { ProjectContext, CreativeFormat, AdCopy, CreativeConcept, GenResult, StoryOption, BigIdeaOption, MechanismOption, MarketAwareness, LanguageRegister } from "../../types";
 import { ai, extractJSON } from "./client";
@@ -156,16 +157,29 @@ export const generateAdCopy = async (
   persona: any, 
   concept: CreativeConcept,
   angle: string, 
-  format?: CreativeFormat,
+  format: CreativeFormat = CreativeFormat.UGLY_VISUAL,
   isHVCOFlow: boolean = false,
   mechanism?: MechanismOption
 ): Promise<GenResult<AdCopy>> => {
   const model = "gemini-2.5-flash";
   const country = project.targetCountry || "USA";
   const isIndo = country.toLowerCase().includes("indonesia");
-  
-  // LOGIC FIX: USE SELECTED REGISTER INSTEAD OF HARDCODED SLANG
   const register = project.languageRegister || LanguageRegister.CASUAL;
+  const awareness = project.marketAwareness || "Problem Aware";
+
+  // --- 0. SALES PRESSURE LOGIC ---
+  let salesPressure = "MEDIUM";
+  let awarenessContext = "";
+
+  if (awareness.includes("Unaware")) {
+      salesPressure = "ZERO PRESSURE. Pure curiosity/education.";
+      awarenessContext = "Target is UNAWARE. Do not pitch the product immediately. Start with the symptom.";
+  } else if (awareness.includes("Most") || awareness.includes("Product")) {
+      salesPressure = "HIGH PRESSURE. Call to action.";
+      awarenessContext = "Target is HOT. Pitch the offer. Stop beating around the bush.";
+  } else {
+      awarenessContext = "Target is AWARE. Show them the mechanism and why it works.";
+  }
 
   // --- 1. PERSONA DEEP DIVE (Agar Emosional) ---
   const deepPsychologyContext = `
@@ -180,72 +194,118 @@ export const generateAdCopy = async (
     Do NOT write a generic ad. Speak directly to their 'Bleeding Neck' problem defined above.
   `;
 
-  // --- 2. TONE ADJUSTMENT (Tiered Language Logic) ---
+  // --- 2. DYNAMIC TONE & LANGUAGE LOGIC (FIXED) ---
+  // Previously this was hardcoded to Indo vs English. Now it supports ANY country.
+  
   let toneInstruction = "";
   
-  if (isIndo) {
-      if (register.includes("Street/Slang")) {
-          // TIER 1: SLANG (Jaksel/Gen Z)
-          toneInstruction = `
-            LANGUAGE STYLE: Bahasa Indonesia "Anak Jaksel" / Social Media Slang / Bahasa Gaul.
-            - FORBIDDEN WORDS (Too Formal): "Anda", "Kami", "Solusi", "Dapatkan", "Memperkenalkan".
-            - MANDATORY WORDS/PARTICLES: "Gue/Lo", "Banget", "Sumpah", "Jujur", "Gimana sih", "sih", "deh", "dong", "kan".
-            - VIBE: Bestie sharing a secret or venting to a friend. Not a salesman holding a brochure.
-          `;
-      } else if (register.includes("Formal/Professional")) {
-          // TIER 3: PROFESSIONAL (B2B/Medical/Elderly)
-          toneInstruction = `
-            LANGUAGE STYLE: Formal, Polite, Professional Indonesian.
-            - USE: "Anda" (You), "Saya" (I), "Kami" (We - Company).
-            - FORBIDDEN WORDS (Too Rude/Slang): "Gue", "Lo", "Aku", "Kamu", "Sumpah", "Banget" (Use "Sangat" instead).
-            - VIBE: Consultant, Doctor, or Financial Advisor. Trustworthy, articulate, respectful.
-            - STRUCTURE: Clear, complete sentences.
-          `;
-      } else {
-          // TIER 2: CASUAL (General Consumer/Mom) - DEFAULT
-          toneInstruction = `
-            LANGUAGE STYLE: Casual but Polite Indonesian (Standard Social Media).
-            - USE: "Aku/Kamu" (Friendly) or neutral phrasing.
-            - AVOID: "Gue/Lo" (Too rough) AND "Anda" (Too stiff/distance).
-            - PARTICLES: "ya", "yuk", "lho", "kok".
-            - VIBE: Friendly neighbor or Mom blogger sharing a tip. Warm and inviting.
-          `;
-      }
-  } else {
-      // ENGLISH TIERS
-      if (register.includes("Street/Slang")) {
-          toneInstruction = `LANGUAGE STYLE: Gen-Z / TikTok Native English. Use slang (fr, ong, lowkey).`;
-      } else if (register.includes("Formal/Professional")) {
-           toneInstruction = `LANGUAGE STYLE: Professional, Corporate, or Medical English. Use 'You', no slang.`;
-      } else {
-           toneInstruction = `
-            LANGUAGE STYLE: Native Social Media English (TikTok/IG/Reddit).
-            - VIBE: Authentic, raw, slightly imperfect. Like a Reddit thread title or a tweet.
-            - STRUCTURE: Short, punchy lines. "In Media Res" storytelling.
-           `;
-      }
-  }
-
-  // --- 3. FORMAT SPECIFIC RULES ---
-  let formatRule = "";
-  if (isHVCOFlow || format === CreativeFormat.LEAD_MAGNET_3D) {
-      formatRule = `
-        GOAL: Sell the CLICK, not the product.
-        Make them curious about the "Secret" inside the guide/video.
-        Use "Fascinations" (e.g., "• The one mistake creating 80% of your problem...").
+  if (register.includes("Street/Slang")) {
+      // SLANG TIER
+      toneInstruction = `
+        LANGUAGE TARGET: Native Slang/Street Language of ${country}.
+        - STYLE: Informal, raw, gen-z, social media native.
+        - KEYWORDS: Use local slang particles.
+        - VIBE: Bestie sharing a secret or venting to a friend. Not a salesman.
+        - IF INDONESIA: Use 'Gue/Lo', 'Banget', 'Sumpah', 'Jujurly'.
+        - IF USA: Use 'fr', 'lowkey', 'ong'.
+        - IF OTHER: Use appropriate local street dialect.
+      `;
+  } else if (register.includes("Formal/Professional")) {
+      // PROFESSIONAL TIER
+      toneInstruction = `
+        LANGUAGE TARGET: Formal/Professional Native Language of ${country}.
+        - STYLE: Respectful, articulate, trustworthy.
+        - KEYWORDS: Use polite pronouns (e.g. 'Anda' in Indo, 'Sie' in German).
+        - VIBE: Consultant, Doctor, or Financial Advisor.
+        - STRUCTURE: Clear, complete sentences. No slang.
       `;
   } else {
-      formatRule = `
-        GOAL: Stop the scroll with a relatable struggle.
-        START "IN MEDIA RES" (In the middle of the action).
+      // CASUAL TIER (DEFAULT)
+      toneInstruction = `
+        LANGUAGE TARGET: Casual/Conversational Native Language of ${country}.
+        - STYLE: Friendly, warm, easy to read.
+        - KEYWORDS: Neutral/Polite pronouns (e.g. 'Aku/Kamu' in Indo).
+        - VIBE: Friendly neighbor or Mom blogger sharing a tip. Warm and inviting.
+      `;
+  }
+
+  // --- 3. BRAND VOICE CALIBRATION (NEW - MEMORY FIX) ---
+  let brandVoiceContext = "";
+  if (project.brandCopyExamples) {
+      brandVoiceContext = `
+        *** BRAND VOICE CALIBRATION (MIMIC THIS STYLE) ***
+        The user has provided examples of their best copy. You MUST adopt this exact writing style (length, emoji usage, sentence structure).
         
-        BAD START: "Are you struggling with X?" (Boring/Ad-like)
-        GOOD START: "I nearly cried looking at my bank account this morning..." (Story/Native)
-        GOOD START: "My doctor actually laughed when I asked about..." (Conflict)
+        REFERENCE EXAMPLES:
+        "${project.brandCopyExamples}"
+        
+        INSTRUCTION: Read the examples above. Absorb the vibe. Write the new ad in THIS specific voice.
       `;
   }
 
-  // --- 4. THE PROMPT (The Brain Transplant) ---
+  // --- 4. FORMAT STYLE GUIDE (The "Same Copy" Fix) ---
+  let formatStyleGuide = "";
+  
+  switch (format) {
+      case CreativeFormat.TWITTER_REPOST:
+      case CreativeFormat.HANDHELD_TWEET:
+          formatStyleGuide = `
+              FORMAT: TWITTER/X THREAD.
+              - LENGTH: Ultra short caption (max 10 words) because the image IS the text.
+              - STYLE: "Link in bio 👇" or "I can't believe I'm sharing this..." or "The thread you needed today."
+              - DO NOT write a long paragraph. The visual does the heavy lifting.
+          `;
+          break;
+      case CreativeFormat.MEME:
+      case CreativeFormat.UGLY_VISUAL:
+      case CreativeFormat.MS_PAINT:
+          formatStyleGuide = `
+              FORMAT: SHITPOST / MEME CAPTION.
+              - LENGTH: 1 short sentence.
+              - STYLE: Lowercase, sarcastic, "it be like that".
+              - EXAMPLE: "real." or "i feel attacked" or "don't tag me."
+              - DO NOT sound like an ad.
+          `;
+          break;
+      case CreativeFormat.LONG_TEXT:
+      case CreativeFormat.REDDIT_THREAD:
+      case CreativeFormat.PHONE_NOTES:
+          formatStyleGuide = `
+              FORMAT: STORYTELLING / CONFESSION.
+              - LENGTH: Medium to Long.
+              - STYLE: Emotional dump. Start with "I messed up..." or "I finally found it...".
+              - STRUCTURE: No emojis in the first line. Raw text.
+          `;
+          break;
+      case CreativeFormat.IG_STORY_TEXT:
+      case CreativeFormat.STORY_POLL:
+          formatStyleGuide = `
+              FORMAT: IG STORY OVERLAY.
+              - LENGTH: Very short hook.
+              - STYLE: "Tap here 👇" or "Who else?"
+              - PURPOSE: Drive a click to the Link Sticker.
+          `;
+          break;
+      case CreativeFormat.GMAIL_UX:
+      case CreativeFormat.DM_NOTIFICATION:
+      case CreativeFormat.CHAT_CONVERSATION:
+          formatStyleGuide = `
+              FORMAT: PRIVATE MESSAGE CONTEXT.
+              - CAPTION: "POV: You finally check your inbox..." or "My doctor sent me this..."
+              - VIBE: Voyeuristic.
+          `;
+          break;
+      default:
+          formatStyleGuide = `
+              FORMAT: STANDARD FEED POST.
+              - LENGTH: 3 short paragraphs.
+              - STRUCTURE: Hook -> Agitate -> Solution.
+              - VIBE: Helpful, high-value advice.
+          `;
+          break;
+  }
+
+  // --- 5. THE PROMPT (The Brain Transplant) ---
   const prompt = `
     # ROLE: Viral Social Media Content Creator (NOT a Copywriter).
     
@@ -258,6 +318,11 @@ export const generateAdCopy = async (
     Offer: ${project.offer}
     ${deepPsychologyContext}
     
+    **MARKET AWARENESS CALIBRATION:**
+    Level: ${awareness}
+    Sales Pressure: ${salesPressure}
+    Context: ${awarenessContext}
+
     **INPUT STRATEGY:**
     Core Angle/Hook: "${angle}"
     Creative Strategy Note: "${concept.copyAngle}"
@@ -287,12 +352,18 @@ export const generateAdCopy = async (
        - Challenge the status quo. "Stop doing X, Start doing Y."
 
     8. **LANGUAGE ENFORCEMENT (ABSOLUTE):**
-       - You detected the target language as: ${isIndo ? "BAHASA INDONESIA" : "ENGLISH"}.
-       - EVEN IF the input data (Product Name, Angle, Description) is in English, YOU MUST WRITE THE OUTPUT IN ${isIndo ? "BAHASA INDONESIA" : "THE TARGET LANGUAGE"}.
+       - TARGET COUNTRY: ${country}
+       - REGISTER: ${register}
+       - EVEN IF the input data (Product Name, Angle, Description) is in English, YOU MUST WRITE THE OUTPUT IN THE NATIVE LANGUAGE OF ${country}.
        - Do NOT mix languages unless it's specific slang defined in the tone.
     
     ${toneInstruction}
-    ${formatRule}
+    ${brandVoiceContext}
+    
+    --- FORMAT STYLE GUIDE (FOLLOW THIS STRICTLY) ---
+    ${formatStyleGuide}
+    --------------------------------------------------
+    
     ${mechanism ? `Hint at the Mechanism ("${mechanism.scientificPseudo}") as the 'New Way' or 'The Reason you failed before', but don't be boring/academic.` : ''}
 
     **TASK:** Write the Instagram/TikTok Caption & Headline.
@@ -305,10 +376,12 @@ export const generateAdCopy = async (
     }
   `;
 
+  // Use a higher temperature for creativity to prevent repetition
   const response = await ai.models.generateContent({
     model,
     contents: prompt,
     config: {
+      temperature: 1.2, // Increased randomness
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,

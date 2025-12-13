@@ -238,6 +238,8 @@ export interface ProjectContext {
   offerOptions?: string[]; 
   marketAwareness?: MarketAwareness;
   copyFramework?: CopyFramework;
+  
+  imageModel?: 'standard' | 'pro'; // New Field
 }
 
 export interface CreativeConcept {

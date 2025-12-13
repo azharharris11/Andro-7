@@ -25,7 +25,15 @@ export const generateCreativeImage = async (
   congruenceRationale?: string
 ): Promise<GenResult<string | null>> => {
   
-  const model = "gemini-2.5-flash-image";
+  // LOGIC TO SWITCH MODELS
+  // standard -> 'gemini-2.5-flash-image'
+  // pro -> 'gemini-3-pro-image-preview'
+  const model = project.imageModel === 'pro' 
+      ? "gemini-3-pro-image-preview" 
+      : "gemini-2.5-flash-image";
+
+  console.log(`🎨 Generating Image using Model: ${model} | Format: ${format}`);
+  
   const country = project.targetCountry || "USA";
   
   const parsedAngle = parseAngle(angle);
@@ -88,10 +96,6 @@ export const generateCreativeImage = async (
   };
 
   // 2. INVOKE UNIFIED PROMPT ENGINE
-  console.log("🧠 Invoking Unified Prompt Engine (Visual + Copy)...");
-  
-  // Single function for all formats.
-  // The AI acts as both Creative Director and Copywriter.
   const finalPrompt = await generateAIWrittenPrompt(ctx);
 
   const parts: any[] = [{ text: finalPrompt }];

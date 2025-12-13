@@ -6,44 +6,48 @@ import { ai } from "./client";
 export const generateAdScript = async (project: ProjectContext, personaName: string, angle: string): Promise<string> => {
     const model = "gemini-2.5-flash";
     const country = project.targetCountry || "USA";
-    const isIndo = country.toLowerCase().includes("indonesia");
     const register = project.languageRegister || LanguageRegister.CASUAL;
     
-    let lang = "English";
-    let extraInstr = "";
+    let langInstruction = "";
     
-    if (isIndo) {
-        if (register.includes("Street/Slang")) {
-            lang = "Bahasa Indonesia (Gaul/Slang/Jaksel)";
-            extraInstr = `
-            CRITICAL RULES:
-            - NO formal words like "Halo", "Perkenalkan", "Fitur".
-            - Use "Gue/Lo".
-            - Use particles: "sih", "dong", "deh".
-            - Sound like a Gen Z TikTok creator.
-            `;
-        } else if (register.includes("Formal/Professional")) {
-            lang = "Bahasa Indonesia (Formal/Professional)";
-            extraInstr = `
-            CRITICAL RULES:
-            - Use "Anda/Saya". 
-            - NO Slang. No "Gue/Lo".
-            - Sound like a Consultant, Doctor, or News Anchor.
-            `;
-        } else {
-            lang = "Bahasa Indonesia (Casual Polite)";
-            extraInstr = `
-            CRITICAL RULES:
-            - Use "Aku/Kamu".
-            - Friendly but respectful.
-            - Sound like a Mom Blogger or Friendly Neighbor.
-            `;
-        }
+    if (register.includes("Street/Slang")) {
+        langInstruction = `
+        LANGUAGE TARGET: Native Slang/Street Language of ${country}.
+        - CRITICAL: NO formal words. Use local street slang.
+        - IF INDONESIA: Use "Gue/Lo", "Sih", "Dong".
+        - IF USA: Use Gen-Z speak.
+        - Sound like a Creator/Influencer.
+        `;
+    } else if (register.includes("Formal/Professional")) {
+        langInstruction = `
+        LANGUAGE TARGET: Formal/Professional Native Language of ${country}.
+        - CRITICAL: Use polite/respectful pronouns.
+        - NO Slang.
+        - Sound like an Expert or News Anchor.
+        `;
+    } else {
+        langInstruction = `
+        LANGUAGE TARGET: Casual/Conversational Native Language of ${country}.
+        - Friendly, warm, natural.
+        - Sound like a regular person.
+        `;
     }
+
+    const prompt = `
+    Write a 15-second TikTok/Reels UGC script for: ${project.productName}. 
+    Product Context: ${project.productDescription}. 
+    
+    ${langInstruction}
+    
+    Angle/Hook: ${angle}. 
+    
+    CONSTRAINT: Keep it under 40 words. Hook the viewer instantly in the first 3 seconds.
+    FORMAT: Just the spoken text (no scene direction).
+    `;
 
     const response = await ai.models.generateContent({
         model,
-        contents: `Write a 15-second TikTok/Reels UGC script for: ${project.productName}. What is it?: ${project.productDescription}. Language: ${lang}. ${extraInstr}. Angle: ${angle}. Keep it under 40 words. Hook the viewer instantly.`
+        contents: prompt
     });
     return response.text || "Script generation failed.";
 };

@@ -1,5 +1,6 @@
+
 import { Type } from "@google/genai";
-import { ProjectContext, GenResult, StoryOption, BigIdeaOption, MechanismOption, HVCOOption, MafiaOffer, LanguageRegister } from "../../types";
+import { ProjectContext, GenResult, StoryOption, BigIdeaOption, MechanismOption, HVCOOption, MafiaOffer, LanguageRegister, MarketAwareness } from "../../types";
 import { ai, extractJSON } from "./client";
 
 // Shared Helper (Duplicate logic for now to keep files independent, or import from utils if available)
@@ -53,11 +54,13 @@ export const generateMafiaOffer = async (project: ProjectContext): Promise<GenRe
     
     CONTEXT:
     Product: ${project.productName}
+    Product Description (WHAT IT IS & HOW IT WORKS): ${project.productDescription}
     Current Offer: ${project.offer}
     Target Audience: ${project.targetAudience}
     
     TASK:
     Transform the boring current offer into a "MAFIA OFFER" (An offer they can't refuse).
+    The offer must feel valuable based on the ACTUAL PRODUCT VALUE described above.
     
     FORMULA:
     1. BOLD PROMISE: Specific outcome with a timeline (Quantified End Result).
@@ -116,15 +119,23 @@ export const generateBigIdeas = async (project: ProjectContext, story: StoryOpti
     
     CONTEXT:
     We are targeting a user who connects with this story: "${story.title}" (${story.narrative}).
-    Product: ${project.productName}.
+    
+    PRODUCT TRUTH:
+    Product Name: ${project.productName}
+    Product Description (THE MECHANISM): ${project.productDescription}
     
     TASK:
-    Generate 3 "Big Ideas" (New Opportunities) that bridge this story to our solution.
+    Generate 3 "Big Ideas" (New Opportunities) that bridge this story to our SPECIFIC solution.
     A Big Idea is NOT a benefit. It is a new way of looking at the problem.
+    
+    CRITICAL CONSTRAINT: 
+    The "New Opportunity" must actually be related to how the product works (${project.productDescription}).
+    Do not invent a mechanism that doesn't exist in the description.
     
     EXAMPLE:
     Story: "I diet but don't lose weight."
-    Big Idea: "It's not your willpower, it's your gut biome diversity." (Shift blame -> New mechanism).
+    Product Truth: A probiotic supplement.
+    Big Idea: "It's not your willpower, it's your gut biome diversity." (Shift blame -> Matches Product).
     
     ${langInstruction}
     **CRITICAL: Write the 'headline', 'concept', and 'targetBelief' in the Target Language defined above. Do NOT output English.**
@@ -170,11 +181,14 @@ export const generateMechanisms = async (project: ProjectContext, bigIdea: BigId
   const langInstruction = getLanguageInstruction(project.targetCountry || "USA", register);
 
   const prompt = `
-    ROLE: Product Engineer / Pseudo-Scientist
+    ROLE: World-Class Direct Response Product Developer.
     
     CONTEXT:
     Big Idea: ${bigIdea.headline}
-    Product: ${project.productName}
+    Product Name: ${project.productName}
+    
+    *** PRODUCT SOURCE OF TRUTH (READ THIS CAREFULLY) ***: 
+    ${project.productDescription}
     
     ${langInstruction}
     
@@ -182,15 +196,26 @@ export const generateMechanisms = async (project: ProjectContext, bigIdea: BigId
     Define the UMP (Unique Mechanism of Problem) and UMS (Unique Mechanism of Solution).
     This gives the "Logic" to the "Magic".
     
-    1. UMP: Why have other methods failed? (e.g., "Standard diets slow down your metabolic rate.")
-    2. UMS: How does THIS product solve that specific UMP? (e.g., "We trigger thermogenesis without caffeine.")
+    1. UMP (The Real Villain): 
+       - Why do standard solutions fail? What is the biological/technical root cause?
+       - Don't just say "It's hard". Say "Cortisol spikes block fat loss" or "Standard foam collapses under pressure".
+       - Make it sound scientific or logical (The "Enemy").
     
-    **CRITICAL: The 'Scientific Pseudo Name' can sound global/English if it sounds more authoritative (e.g. 'Bio-Lock Protocol'), BUT the explanations (UMP/UMS) MUST be in the Target Language.**
+    2. UMS (The New Hero):
+       - How does THIS product solve the UMP?
+       - Be specific about the ingredient, feature, or process found in the product description.
+    
+    3. MECHANISM NAME (The Wrapper):
+       - Give the UMS a proprietary name. 
+       - Examples: "Dual-Action Weave", "Micro-Encapsulation", "The 3-Phase Protocol".
+       - NOT generic: "Good Quality", "Best Service", "Legacy Protocol".
+       
+    **CRITICAL: The 'Scientific Pseudo Name' (Headline) must be DESCRIPTIVE of the physical product.**
     
     OUTPUT JSON (3 Variants):
     - ump: The Root Cause of failure (In Target Language).
     - ums: The New Solution mechanism (In Target Language).
-    - scientificPseudo: A catchy name for the mechanism.
+    - scientificPseudo: A catchy but CLEAR name for the mechanism.
   `;
 
   const response = await ai.models.generateContent({
@@ -233,33 +258,34 @@ export const generateHooks = async (
   const langInstruction = getLanguageInstruction(project.targetCountry || "USA", register);
   
   const prompt = `
-    ROLE: Viral Social Media Editor / Direct Response Copywriter.
+    ROLE: Viral Hook Writer (TikTok/Reels/FB Ads).
     
     INPUT CONTEXT:
     1. STORY LEAD: "${story.narrative}"
-    2. DOMINANT EMOTION: "${story.emotionalTheme}"
-    3. BIG IDEA: "${bigIdea.headline}"
-    4. UMP (The Enemy): "${mechanism.ump}"
-    5. MECHANISM: "${mechanism.scientificPseudo}"
+    2. EMOTION: "${story.emotionalTheme}"
+    3. UMP (The Enemy): "${mechanism.ump}"
+    4. MECHANISM NAME: "${mechanism.scientificPseudo}" (DO NOT USE THIS NAME IN THE HOOK!)
     
     TASK: 
     Generate 10-15 viral hooks that specifically channel the "${story.emotionalTheme}" emotion.
-    The hook must bridge the gap between the User's Story and the Mechanism.
     
+    **CRITICAL "NO REVEAL" RULE (THE MYSTERY GAP):**
+    - NEVER mention the "Mechanism Name" or "Product Name" in the hook.
+    - Curiosity requires a "Gap". If you name the solution, the gap closes, and they scroll past.
+    - Instead of "Use the Bio-Lock Protocol", say "This 30-second ritual..."
+    - Instead of "Buy Lumina Mask", say "Why your sleep is actually broken..."
+    - Refer to the solution as "The Secret", "This 1 Change", "A Simple Tweak", "The Routine", "Hidden Cause".
+
     ${langInstruction}
-    **CRITICAL: Write the hooks in the Target Language defined above. Do NOT output English.**
+    **CRITICAL: Write the hooks in the Target Language defined above.**
 
-    RULES:
-    1. Use "Shock & Awe".
-    2. Be Specific (Use Odd Numbers).
-    3. Call out the "Enemy" or a "Hidden Danger".
-    4. TONE: Urgent, slightly controversial, "Trashy but Irresistible".
+    PATTERNS TO USE:
+    1. "The Real Reason you [Problem]..." (Focus on UMP)
+    2. "Stop doing [Common Habit]..." (Pattern Interrupt)
+    3. "I finally found why [Old Solution] failed..." (Story Gap)
+    4. "Doctors are wrong about [Topic]..." (Contrarian)
+    5. "Sumpah, nyesel banget baru tau [Rahasia/Trik] ini..." (If Indo Slang)
 
-    BAD HOOK: "Here is how to lose weight."
-    GOOD HOOK (English): "The '3-Second Morning Ritual' Doctors Are Begging You To Stop Using."
-    GOOD HOOK (Indo Slang): "Sumpah nyesel banget baru tau trik 3 detik ini sekarang."
-    GOOD HOOK (Indo Formal): "Peringatan Medis: Hindari kebiasaan pagi ini jika Anda berusia 40+."
-    
     Output a simple JSON string array.
   `;
   
@@ -286,6 +312,41 @@ export const generateAngles = async (project: ProjectContext, personaName: strin
   const model = "gemini-2.5-flash";
   const register = project.languageRegister || LanguageRegister.CASUAL;
   const langInstruction = getLanguageInstruction(project.targetCountry || "USA", register);
+  const awareness = project.marketAwareness || MarketAwareness.PROBLEM_AWARE;
+
+  // LOGIC FIX: AWARENESS CONTEXT
+  let awarenessGuide = "";
+  if (awareness === MarketAwareness.UNAWARE) {
+      awarenessGuide = `
+        MARKET AWARENESS: UNAWARE (Level 1).
+        - The user DOES NOT know they have a problem.
+        - DO NOT mention the product or the solution name.
+        - DO NOT use "Sales" language.
+        - FOCUS: Symptoms, anomalies, weird feelings, "Why is this happening?".
+        - GOAL: Make them say "Wait, I have that!"
+      `;
+  } else if (awareness === MarketAwareness.PROBLEM_AWARE) {
+      awarenessGuide = `
+        MARKET AWARENESS: PROBLEM AWARE (Level 2).
+        - The user knows they have pain, but doesn't know the cure.
+        - FOCUS: Empathy, Agitation, "Why standard advice fails".
+        - GOAL: Prove you understand the problem better than they do.
+      `;
+  } else if (awareness === MarketAwareness.SOLUTION_AWARE) {
+      awarenessGuide = `
+        MARKET AWARENESS: SOLUTION AWARE (Level 3).
+        - The user is shopping around (e.g. Keto vs Paleo, Cream vs Pill).
+        - FOCUS: Mechanism comparisons, "The Old Way vs The New Way".
+        - GOAL: Prove your mechanism is superior.
+      `;
+  } else {
+      awarenessGuide = `
+        MARKET AWARENESS: PRODUCT/MOST AWARE (Level 4/5).
+        - The user knows you. They are on the fence.
+        - FOCUS: The Offer, The Guarantee, The Discount, The FOMO.
+        - GOAL: Close the sale now.
+      `;
+  }
 
   // SYSTEM: Andromeda Strategy (Tier Selection & Prioritization)
   const prompt = `
@@ -293,15 +354,18 @@ export const generateAngles = async (project: ProjectContext, personaName: strin
     
     CONTEXT:
     Product: ${project.productName}
+    Product Description (SOURCE OF TRUTH): ${project.productDescription}
     Persona: ${personaName}
     Deep Motivation: ${personaMotivation}
     Target Country: ${project.targetCountry}
     
-    TASK:
-    Brainstorm 10 raw angles/hooks using these specific psychological frames:
+    ${awarenessGuide}
     
-    1. THE NEGATIVE ANGLE (Crucial): Focus on what they want to AVOID. (e.g., "Stop wasting money on X", "No more back pain").
-    2. THE TECHNICAL ANGLE: Use a specific scientific term/ingredient (e.g., "Cortisol", "Blue Light").
+    TASK:
+    Brainstorm 10 raw angles/hooks using these specific psychological frames, TAILORED TO THE AWARENESS LEVEL:
+    
+    1. THE NEGATIVE ANGLE (Crucial): Focus on what they want to AVOID.
+    2. THE TECHNICAL ANGLE: Use a specific scientific term/ingredient FROM THE PRODUCT DESCRIPTION.
     3. THE DESIRE ANGLE: Pure benefit/transformation.
 
     Then, Prioritize & Assign Tiers:
@@ -358,10 +422,12 @@ export const generateHVCOIdeas = async (project: ProjectContext, painPoint: stri
     We need a "High Value Content Offer" (HVCO) - a Bait piece of content (PDF/Video/Guide).
     
     PRODUCT: ${project.productName}
+    PRODUCT DESCRIPTION: ${project.productDescription}
     PAIN POINT: ${painPoint}
     
     TASK:
     Generate 3 HVCO (Lead Magnet) Titles that solve a specific "Bleeding Neck" problem WITHOUT asking for a purchase.
+    The content MUST be relevant to the product niche.
     
     CRITERIA:
     1. Must sound like "Forbidden Knowledge" or "Insider Secrets".
