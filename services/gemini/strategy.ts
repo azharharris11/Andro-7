@@ -19,7 +19,7 @@ const getLanguageInstruction = (country: string, register: LanguageRegister): st
 };
 
 export const auditHeadlineSabri = async (headline: string, audience: string): Promise<string> => {
-  const model = "gemini-2.5-flash";
+  const model = "gemini-3-flash-preview";
   const prompt = `
     Role: Sabri Suby (Ruthless Copy Editor).
     

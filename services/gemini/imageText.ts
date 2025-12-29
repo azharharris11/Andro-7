@@ -27,7 +27,7 @@ export const generateVisualText = async (
     format: CreativeFormat,
     parsedAngle: ParsedAngle
 ): Promise<string> => {
-    const model = "gemini-2.5-flash";
+    const model = "gemini-3-flash-preview";
     const { cleanAngle } = parsedAngle;
     const isIndo = project.targetCountry?.toLowerCase().includes("indonesia");
 

@@ -4,7 +4,7 @@ import { ProjectContext, LanguageRegister } from "../../types";
 import { ai } from "./client";
 
 export const generateAdScript = async (project: ProjectContext, personaName: string, angle: string): Promise<string> => {
-    const model = "gemini-2.5-flash";
+    const model = "gemini-3-flash-preview";
     const country = project.targetCountry || "USA";
     const register = project.languageRegister || LanguageRegister.CASUAL;
     

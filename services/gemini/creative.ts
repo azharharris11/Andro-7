@@ -10,7 +10,7 @@ export const generateSalesLetter = async (
   mechanism: MechanismOption,
   hook: string
 ): Promise<GenResult<string>> => {
-  const model = "gemini-2.5-flash";
+  const model = "gemini-3-flash-preview";
   
   const prompt = `
     ROLE: Direct Response Copywriter (Long Form / Advertorial Specialist).

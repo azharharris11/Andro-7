@@ -4,7 +4,7 @@ import { ProjectContext, NodeData, PredictionMetrics, GenResult, AdCopy, Languag
 import { ai, extractJSON } from "./client";
 
 export const checkAdCompliance = async (adCopy: AdCopy): Promise<string> => {
-  const model = "gemini-2.5-flash";
+  const model = "gemini-3-flash-preview";
   const prompt = `
     ROLE: Facebook/TikTok Ad Policy Expert.
     
