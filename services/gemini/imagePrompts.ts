@@ -1,4 +1,24 @@
-// services/gemini/imagePrompts.ts
+import { StrategyMode, CreativeFormat } from "../../types";
+import { generateWithRetry } from "./client";
+import { PromptContext } from "./imageUtils";
+
+const getFormatVisualGuide = (format: CreativeFormat): string => {
+    switch (format) {
+        case CreativeFormat.UGLY_VISUAL:
+        case CreativeFormat.MS_PAINT:
+            return "Style: Lo-fi, amateur, crude MS Paint drawing or bad collage.";
+        case CreativeFormat.TWITTER_REPOST:
+        case CreativeFormat.HANDHELD_TWEET:
+            return "Style: A photo of a hand holding a phone displaying a tweet/social post.";
+        case CreativeFormat.GMAIL_UX:
+            return "Style: Email interface screenshot.";
+        case CreativeFormat.CHAT_CONVERSATION:
+        case CreativeFormat.DM_NOTIFICATION:
+            return "Style: Chat or messaging interface bubble.";
+        default:
+            return "Style: Native social media content.";
+    }
+};
 
 export const generateAIWrittenPrompt = async (ctx: PromptContext): Promise<string> => {
     const { 

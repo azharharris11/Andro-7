@@ -260,6 +260,18 @@ export interface CreativeConcept {
   ctaComponent?: string; 
 }
 
+// Unified Output for One-Shot Generation
+export interface CreativeStrategyResult {
+  visualScene: string;
+  visualStyle: string;
+  textOverlay: string; // The specific text to render ON the image
+  primaryText: string; // The ad caption
+  headline: string;    // The ad headline
+  cta: string;
+  rationale: string;
+  congruenceRationale: string;
+}
+
 export interface GenResult<T> {
   data: T;
   inputTokens: number;

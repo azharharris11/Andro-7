@@ -3,8 +3,7 @@ import { Type } from "@google/genai";
 import { 
   ProjectContext, 
   CreativeFormat, 
-  AdCopy, 
-  CreativeConcept, 
+  CreativeStrategyResult,
   GenResult, 
   StoryOption, 
   BigIdeaOption, 
@@ -12,7 +11,7 @@ import {
   LanguageRegister, 
   StrategyMode 
 } from "../../types";
-import { ai, extractJSON } from "./client";
+import { ai, extractJSON, generateWithRetry } from "./client";
 
 export const generateSalesLetter = async (
   project: ProjectContext,
@@ -44,7 +43,7 @@ export const generateSalesLetter = async (
     FORMAT: Markdown. Paragraphs: 1-2 sentences max. Use bolding for emphasis on core benefits.
   `;
 
-  const response = await ai.models.generateContent({
+  const response = await generateWithRetry({
     model,
     contents: prompt
   });
@@ -56,20 +55,29 @@ export const generateSalesLetter = async (
   };
 };
 
-export const generateCreativeConcept = async (
+/**
+ * ONE-SHOT STRATEGY GENERATOR
+ * Combines Visual Concept, Visual Text Overlay, and Ad Copy into a single reasoning step.
+ * Reduces latency and ensures congruency between what is seen (Image) and what is read (Copy).
+ */
+export const generateCreativeStrategy = async (
   project: ProjectContext, 
   fullStrategyContext: any, 
   angle: string, 
-  format: CreativeFormat
-): Promise<GenResult<CreativeConcept>> => {
+  format: CreativeFormat,
+  isHVCOFlow: boolean = false
+): Promise<GenResult<CreativeStrategyResult>> => {
   const model = "gemini-3-flash-preview";
   const strategyMode = project.strategyMode || StrategyMode.DIRECT_RESPONSE;
+  const country = project.targetCountry || "Indonesia";
+  const register = project.languageRegister || LanguageRegister.CASUAL;
   
   // Robust Extraction for Context
   const persona = fullStrategyContext || {};
   const personaPain = persona.visceralSymptoms ? persona.visceralSymptoms.join(", ") : "General frustration";
   const mech = fullStrategyContext?.mechanismData;
   const bigIdea = fullStrategyContext?.bigIdeaData;
+  const story = fullStrategyContext?.storyData;
 
   // DYNAMIC STRATEGY DIRECTION
   let strategyInstruction = "";
@@ -77,161 +85,100 @@ export const generateCreativeConcept = async (
       strategyInstruction = `
         **PRIORITY: CONVERSION & OFFER**
         - Visual: "Hero Shot" of ${project.productName}. High quality, clean, trustworthy.
-        - Tone: Urgent, direct, promotional.
-        - Override: If format is 'Ugly', maintain the low-fi vibe but the PRODUCT must remain the clear hero.
+        - Text Overlay: Urgent, scarcity-driven (e.g. "50% OFF", "Last Chance").
+        - Copy Tone: Urgent, direct, promotional.
       `;
   } else if (strategyMode === StrategyMode.VISUAL_IMPULSE) {
       strategyInstruction = `
         **PRIORITY: AESTHETIC & DESIRE**
         - Visual: Aspirational, Pinterest-style, lifestyle focus.
-        - Tone: Minimalist, "cool", identity-driven.
-              `;
+        - Text Overlay: Minimalist, 1-3 words max.
+        - Copy Tone: Minimalist, "cool", identity-driven.
+      `;
   } else {
       strategyInstruction = `
         **PRIORITY: PATTERN INTERRUPT (Direct Response)**
         - Visual: Start with the PROBLEM/PAIN. Show a relatable human moment.
-        - Tone: Empathetic, raw, "Stop the scroll" energy.
+        - Text Overlay: The "Hook" or "Question" that stops the scroll.
+        - Copy Tone: Empathetic, raw, "Stop the scroll" energy.
       `;
   }
 
   const prompt = `
-    # Role: Creative Director (Meta Ads Specialist)
+    # ROLE: World-Class Creative Strategist (Meta & TikTok Ads)
 
     **CONTEXT:**
     Strategy Mode: ${strategyMode}
     Format: ${format}
-    Target Country: ${project.targetCountry}
+    Target Country: ${country} (Native Language for Copy & Text Overlay)
+    Language Register: ${register}
 
     **STRATEGIC GUIDELINES:**
     ${strategyInstruction}
 
     **CORE INPUTS:**
     Product: ${project.productName} - ${project.productDescription}
-    Winning Insight: ${angle}
+    Winning Hook/Angle: "${angle}"
     Mechanism Logic: ${mech?.ums || "Standard benefit"}
     
     **PERSONA DATA:**
     Who: ${persona.name || "Target User"}
     Symptoms: ${personaPain}
-    
-    **TASK:** 
-    1. Create a visual scene that proves the text is true (Congruence).
-    2. Define visual style, lighting, and mood.
-    3. Ensure 'copyAngle' provides a clear transition for the caption writer.
-
-    **OUTPUT JSON REQUIREMENTS:**
-    - visualScene: Specific action/setup.
-    - visualStyle: Camera type, lighting, mood.
-    - copyAngle: The strategic "Hook" for the copywriter.
-    - rationale: Strategic reason why this hooks the persona.
-    - congruenceRationale: Why the image supports the specific claim.
-  `;
-
-  const response = await ai.models.generateContent({
-    model,
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          visualScene: { type: Type.STRING },
-          visualStyle: { type: Type.STRING },
-          // technicalPrompt Removed
-          copyAngle: { type: Type.STRING },
-          rationale: { type: Type.STRING },
-          congruenceRationale: { type: Type.STRING }
-        },
-        required: ["visualScene", "visualStyle", "copyAngle", "rationale", "congruenceRationale"]
-      }
-    }
-  });
-
-  return {
-    data: extractJSON(response.text || "{}"),
-    inputTokens: response.usageMetadata?.promptTokenCount || 0,
-    outputTokens: response.usageMetadata?.candidatesTokenCount || 0
-  };
-};
-
-export const generateAdCopy = async (
-  project: ProjectContext, 
-  fullStrategyContext: any, 
-  concept: CreativeConcept,
-  angle: string, 
-  format: CreativeFormat = CreativeFormat.UGLY_VISUAL,
-  isHVCOFlow: boolean = false,
-  mechanism?: MechanismOption
-): Promise<GenResult<AdCopy>> => {
-  const model = "gemini-3-flash-preview";
-  const country = project.targetCountry || "Indonesia";
-  const register = project.languageRegister || LanguageRegister.CASUAL;
-  const strategyMode = project.strategyMode || StrategyMode.DIRECT_RESPONSE;
-
-  const persona = fullStrategyContext || {};
-  const story = fullStrategyContext?.storyData;
-  const bigIdea = fullStrategyContext?.bigIdeaData;
-
-  let strategyGuide = "";
-  if (strategyMode === StrategyMode.VISUAL_IMPULSE) {
-      strategyGuide = `Sell the VIBE and IDENTITY. Short, minimalist, confident. Avoid "Pain" language.`;
-  } else if (strategyMode === StrategyMode.HARD_SELL) {
-      strategyGuide = `Sell the OFFER and URGENCY. Scarcity-driven. Focus on the deal.`;
-  } else {
-      strategyGuide = `Sell the LOGIC & EMOTION. Use the persona's Visceral Symptoms: ${persona.visceralSymptoms?.join(', ')}. Mention the mechanism benefit: ${mechanism?.ums || ""}.`;
-  }
-
-  const prompt = `
-    # ROLE: Social Media Copywriter (Direct Response Expert)
-    
-    **INPUTS:**
-    Target Country: ${country} (Write in NATIVE language)
-    Register: ${register}
-    Visual Concept: ${concept.visualScene}
-    Winning Hook: ${angle}
-    
-    **STRATEGY:**
-    ${strategyGuide}
-    
-    **CONTEXT:**
     ${story ? `Narrative Context: ${story.narrative}` : ''}
     ${bigIdea ? `Big Idea Shift: ${bigIdea.concept}` : ''}
-
-    **FORMAT RULES:**
-    ${format === CreativeFormat.MEME || format === CreativeFormat.UGLY_VISUAL ? '1 sentence, sarcastic/raw.' : 'Structure: Hook -> Body -> CTA.'}
     
-    **TASK:** Write the Caption and Headline.
-    **CRITICAL:** Caption must be CONGRUENT with the visual concept: "${concept.visualScene}".
+    **TASK:** 
+    Design the COMPLETE Creative Asset in one cohesive step.
+    1. **Visual Scene:** A detailed description of the image action that proves the hook.
+    2. **Text Overlay (Embedded on Image):** 1-5 words that appear ON the image/thumbnail. Must be short and punchy.
+    3. **Ad Copy (Caption):** The primary text and headline for the ad post.
 
+    **CRITICAL:** 
+    - The *Text Overlay* and *Visual Scene* must work together to create "Congruence" (The image proves the text).
+    - If format is "Native" (like Twitter/Reddit), the Text Overlay is the content of the tweet/post.
+    
     **OUTPUT JSON:**
-    {
-      "primaryText": "Caption copy in native language",
-      "headline": "Scroll-stopping headline (Max 7 words)",
-      "cta": "Action text (e.g. 'Coba Sekarang', 'Shop Now')"
-    }
+    - visualScene: Specific action/setup for the image generator.
+    - visualStyle: Camera type, lighting, mood.
+    - textOverlay: The exact text string to render on the image (Native Language).
+    - primaryText: Ad caption (Native Language).
+    - headline: Ad headline (Max 7 words, Native Language).
+    - cta: Button text (e.g. Shop Now).
+    - rationale: Why this combination hooks the persona.
+    - congruenceRationale: How the image visually proves the text claim.
   `;
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: prompt,
-    config: {
-      temperature: 1.0, 
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          primaryText: { type: Type.STRING },
-          headline: { type: Type.STRING },
-          cta: { type: Type.STRING }
-        },
-        required: ["primaryText", "headline", "cta"]
+  try {
+    const response = await generateWithRetry({
+      model,
+      contents: prompt,
+      config: {
+        temperature: 1.0,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            visualScene: { type: Type.STRING },
+            visualStyle: { type: Type.STRING },
+            textOverlay: { type: Type.STRING },
+            primaryText: { type: Type.STRING },
+            headline: { type: Type.STRING },
+            cta: { type: Type.STRING },
+            rationale: { type: Type.STRING },
+            congruenceRationale: { type: Type.STRING }
+          },
+          required: ["visualScene", "visualStyle", "textOverlay", "primaryText", "headline", "cta", "rationale"]
+        }
       }
-    }
-  });
+    });
 
-  return {
-    data: extractJSON(response.text || "{}"),
-    inputTokens: response.usageMetadata?.promptTokenCount || 0,
-    outputTokens: response.usageMetadata?.candidatesTokenCount || 0
-  };
+    return {
+      data: extractJSON(response.text || "{}"),
+      inputTokens: response.usageMetadata?.promptTokenCount || 0,
+      outputTokens: response.usageMetadata?.candidatesTokenCount || 0
+    };
+  } catch (error) {
+    console.error("Creative Strategy Generation Error", error);
+    throw error;
+  }
 };

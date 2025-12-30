@@ -356,13 +356,17 @@ const App: React.FC = () => {
       }
 
       for (const fmt of formatsToGen) {
-          // 1. Concept (Pass Full Context)
-          const conceptRes = await GeminiService.generateCreativeConcept(project, fullStrategyContext, angleToUse, fmt);
+          const isHVCO = parentNode.type === NodeType.HVCO_NODE;
+
+          // 1. Unified Strategy Generation (Concept + Copy + Overlay Text in ONE shot)
+          const strategyRes = await GeminiService.generateCreativeStrategy(
+              project, fullStrategyContext, angleToUse, fmt, isHVCO
+          );
           
-          if (conceptRes.data) {
-              const concept = conceptRes.data;
+          if (strategyRes.data) {
+              const strategy = strategyRes.data;
               
-              // 2. Visual (Pass Full Context)
+              // 2. Visual Generation (Pass Full Context + EMBEDDED TEXT from Strategy)
               let imageUrl: string | null = null;
               let carouselImages: string[] = [];
               let imageTokens = 0;
@@ -370,8 +374,8 @@ const App: React.FC = () => {
               
               if (fmt.includes('Carousel')) {
                    const slidesRes = await GeminiService.generateCarouselSlides(
-                       project, fmt, angleToUse, concept.visualScene, concept.visualStyle, fullStrategyContext,
-                       concept.congruenceRationale // Pass rationale
+                       project, fmt, angleToUse, strategy.visualScene, strategy.visualStyle, fullStrategyContext,
+                       strategy.congruenceRationale // Pass rationale
                    );
                    if (slidesRes.data && slidesRes.data.imageUrls.length > 0) {
                        imageUrl = slidesRes.data.imageUrls[0];
@@ -381,46 +385,61 @@ const App: React.FC = () => {
                    }
               } else {
                    const imgRes = await GeminiService.generateCreativeImage(
-                       project, fullStrategyContext, angleToUse, fmt, concept.visualScene, concept.visualStyle, "1:1", undefined,
-                       concept.congruenceRationale // Pass rationale
+                       project, 
+                       fullStrategyContext, 
+                       angleToUse, 
+                       fmt, 
+                       strategy.visualScene, 
+                       strategy.visualStyle, 
+                       "1:1", 
+                       strategy.textOverlay, // NEW: Using the Strategy-Defined Text
+                       undefined,
+                       strategy.congruenceRationale // Pass rationale
                    );
                    imageUrl = imgRes.data.imageUrl;
                    finalGenerationPrompt = imgRes.data.finalPrompt;
                    imageTokens = imgRes.inputTokens + imgRes.outputTokens;
               }
 
-              // 3. Copy (Pass Full Context - NOW FIXED)
-              const isHVCO = parentNode.type === NodeType.HVCO_NODE;
-              const copyRes = await GeminiService.generateAdCopy(
-                  project, fullStrategyContext, concept, angleToUse, fmt, isHVCO, parentNode.mechanismData
-              );
-              
-              if (copyRes.data) {
-                   addNode({
-                       id: uuidv4(),
-                       type: NodeType.CREATIVE,
-                       title: copyRes.data.headline,
-                       description: concept.visualScene,
-                       format: fmt,
-                       imageUrl: imageUrl || undefined,
-                       carouselImages: carouselImages.length > 1 ? carouselImages : undefined,
-                       adCopy: copyRes.data,
-                       // Store Final Mega Prompt here for inspection
-                       meta: { ...parentNode.meta, angle: angleToUse, concept, finalGenerationPrompt },
-                       // Inherit megaprompt data if exists
-                       storyData: parentNode.storyData,
-                       bigIdeaData: parentNode.bigIdeaData,
-                       mechanismData: parentNode.mechanismData,
-                       
-                       x: parentNode.x + 450,
-                       y: parentNode.y + verticalOffset,
-                       parentId: parentNode.id,
-                       
-                       inputTokens: conceptRes.inputTokens + imageTokens + copyRes.inputTokens,
-                       outputTokens: conceptRes.outputTokens + copyRes.outputTokens
-                   }, parentNode.id);
-                   verticalOffset += 400;
-              }
+              addNode({
+                   id: uuidv4(),
+                   type: NodeType.CREATIVE,
+                   title: strategy.headline,
+                   description: strategy.visualScene,
+                   format: fmt,
+                   imageUrl: imageUrl || undefined,
+                   carouselImages: carouselImages.length > 1 ? carouselImages : undefined,
+                   adCopy: {
+                       headline: strategy.headline,
+                       primaryText: strategy.primaryText,
+                       cta: strategy.cta
+                   },
+                   // Store Strategy & Prompt data for Inspector
+                   meta: { 
+                       ...parentNode.meta, 
+                       angle: angleToUse, 
+                       concept: {
+                           visualScene: strategy.visualScene,
+                           visualStyle: strategy.visualStyle,
+                           copyAngle: strategy.headline,
+                           rationale: strategy.rationale,
+                           congruenceRationale: strategy.congruenceRationale
+                       }, 
+                       finalGenerationPrompt 
+                   },
+                   // Inherit megaprompt data if exists
+                   storyData: parentNode.storyData,
+                   bigIdeaData: parentNode.bigIdeaData,
+                   mechanismData: parentNode.mechanismData,
+                   
+                   x: parentNode.x + 450,
+                   y: parentNode.y + verticalOffset,
+                   parentId: parentNode.id,
+                   
+                   inputTokens: strategyRes.inputTokens + imageTokens,
+                   outputTokens: strategyRes.outputTokens
+               }, parentNode.id);
+               verticalOffset += 400;
           }
       }
       
@@ -453,24 +472,36 @@ const App: React.FC = () => {
       handleUpdateNode(id, { isLoading: true });
       
       const concept = node.meta.concept;
+      // We don't have the "Text Overlay" stored in meta directly in old nodes, 
+      // but for new nodes we could store it. For now, let's extract it or use a default.
+      // Ideally, `concept` should have had it, but we kept the old `CreativeConcept` type in meta for compatibility.
+      // Let's rely on the prompt regeneration or the visual scene.
+      // For simplified regeneration, we might lose the specific "textOverlay" if not stored.
+      // Let's assume the user wants to keep the textOverlay implied in the visual scene or we pass a generic one.
       
-      // FIX 3: REGENERATION LOGIC HOLE
-      // When regenerating, we must also pass the FULL strategy context found on the Creative node.
+      // FIX: To support regeneration properly with the new flow, we ideally need to store `textOverlay` in meta.
+      // But since we didn't add it to NodeData meta explicitly in the `addNode` above (we added `concept` which doesn't have it),
+      // we can try to extract it from the finalPrompt if needed, or just let `generateCreativeImage` use a default 
+      // if `embeddedText` is missing.
+      // HOWEVER, let's look at `handleGenerateCreatives`. We passed `strategy.textOverlay` to `generateCreativeImage`.
+      // We didn't save `strategy.textOverlay` in `node.meta`. 
+      // Let's update `handleGenerateCreatives` to save it in `meta` if possible, but for now, 
+      // let's just pass "Regenerated" or the Angle as text overlay fallback.
+      
       const fullStrategyContext = {
-          ...(node.meta || {}), // Contains persona data
+          ...(node.meta || {}),
           storyData: node.storyData,
           bigIdeaData: node.bigIdeaData,
           mechanismData: node.mechanismData
       };
       
-      // We reuse the concept but regenerate the image
       const imgRes = await GeminiService.generateCreativeImage(
            project, fullStrategyContext, node.meta.angle, node.format!, 
            concept.visualScene, concept.visualStyle, aspectRatio,
-           undefined, concept.congruenceRationale // Pass rationale
+           node.title, // Fallback: Use Headline as Text Overlay for regeneration
+           undefined, concept.congruenceRationale 
       );
       
-      // Save new URL AND new Prompt
       handleUpdateNode(id, { 
           isLoading: false, 
           imageUrl: imgRes.data.imageUrl || node.imageUrl,

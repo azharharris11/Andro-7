@@ -12,7 +12,8 @@ import {
     getSubjectFocus 
 } from "./imageUtils";
 import { generateAIWrittenPrompt } from "./imagePrompts";
-import { generateVisualText } from "./imageText";
+
+// Removed import { generateVisualText } from "./imageText";
 
 export const generateCreativeImage = async (
   project: ProjectContext,
@@ -22,6 +23,7 @@ export const generateCreativeImage = async (
   visualScene: string,
   visualStyle: string,
   aspectRatio: string = "1:1",
+  embeddedText: string, // NEW: Passed directly from Strategy
   referenceImageBase64?: string,
   congruenceRationale?: string
 ): Promise<GenResult<{ imageUrl: string | null; finalPrompt: string }>> => {
@@ -37,8 +39,8 @@ export const generateCreativeImage = async (
   const culturePrompt = getCulturePrompt(country);
   const personaVisuals = getPersonaVisualContext(persona);
   
-  // 1. GENERATE CUSTOM TEXT FOR FORMAT
-  const embeddedText = await generateVisualText(project, format, parsedAngle);
+  // 1. GENERATE CUSTOM TEXT FOR FORMAT -> REMOVED
+  // We now use the embeddedText passed from the one-shot strategy
 
   // 2. GET PSYCHOLOGICAL BLOCKING
   const subjectFocus = getSubjectFocus(
@@ -48,7 +50,6 @@ export const generateCreativeImage = async (
     project
   );
 
-  // 3. DEFINE FORMAT GROUPS (Fixing ReferenceError)
   const isUglyFormat = [
     CreativeFormat.UGLY_VISUAL, 
     CreativeFormat.MS_PAINT, 
@@ -90,7 +91,7 @@ export const generateCreativeImage = async (
       congruenceRationale,
       aspectRatio,
       rawPersona: persona,
-      embeddedText
+      embeddedText // Now using the passed argument
   };
 
   const finalPrompt = await generateAIWrittenPrompt(ctx);
@@ -109,7 +110,6 @@ export const generateCreativeImage = async (
   }
 
   try {
-    // Use generateWithRetry to handle potential API instability
     const response = await generateWithRetry({
       model,
       contents: { parts },
@@ -201,7 +201,6 @@ export const generateCarouselSlides = async (
         promptTokens += (response.usageMetadata?.promptTokenCount || 0);
     } catch (e) {
         console.error("Failed to generate slide prompts", e);
-        // Fallback to visualScene if JSON generation fails
         slidePrompts = [visualScene, visualScene, visualScene]; 
     }
 
