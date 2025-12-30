@@ -84,12 +84,11 @@ export const generateCreativeConcept = async (
         **PRIORITY: AESTHETIC & DESIRE**
         - Visual: Aspirational, Pinterest-style, lifestyle focus.
         - Tone: Minimalist, "cool", identity-driven.
-        - Forbidden: No "Pain/Suffering" visuals or overly clinical text.
-      `;
+              `;
   } else {
       strategyInstruction = `
         **PRIORITY: PATTERN INTERRUPT (Direct Response)**
-        - Visual: Start with the PROBLEM/PAIN. Show a relatable "Messy" human moment.
+        - Visual: Start with the PROBLEM/PAIN. Show a relatable human moment.
         - Tone: Empathetic, raw, "Stop the scroll" energy.
       `;
   }

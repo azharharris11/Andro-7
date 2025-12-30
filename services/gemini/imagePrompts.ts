@@ -47,13 +47,6 @@ export const generateAIWrittenPrompt = async (ctx: PromptContext): Promise<strin
         }
     };
 
-    const globalUglyRules = `
-    RULE: Strictly NO stock-photo aesthetic. 
-    - Jika format adalah 'UGLY', 'MS_PAINT', atau 'MEME', AI harus sengaja mengabaikan fitur "high-quality rendering" dari model.
-    - Gunakan pencahayaan amatir dan cropping yang tidak sempurna. 
-    - Pastikan visual tidak terlihat seperti hasil render AI yang terlalu halus.
-`;
-
     const systemPrompt = `
     ROLE: World-Class AI Prompt Engineer & Creative Director specializing in "direct respons ads".
     TASK: Create a single Strategically Raw, High-Conversion Image Generation Prompt.
