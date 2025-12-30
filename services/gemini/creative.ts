@@ -49,7 +49,7 @@ export const generateCreativeConcept = async (
   angle: string, 
   format: CreativeFormat
 ): Promise<GenResult<CreativeConcept>> => {
-  const model = "gemini-2.5-flash";
+  const model = "gemini-3-flash-preview";
 
   const awareness = project.marketAwareness || "Problem Aware";
   const strategyMode = project.strategyMode || StrategyMode.DIRECT_RESPONSE;
@@ -175,7 +175,7 @@ export const generateAdCopy = async (
   isHVCOFlow: boolean = false,
   mechanism?: MechanismOption
 ): Promise<GenResult<AdCopy>> => {
-  const model = "gemini-2.5-flash";
+  const model = "gemini-3-flash-preview";
   const country = project.targetCountry || "USA";
   const register = project.languageRegister || LanguageRegister.CASUAL;
   const awareness = project.marketAwareness || "Problem Aware";
