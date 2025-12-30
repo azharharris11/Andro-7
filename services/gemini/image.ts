@@ -21,7 +21,6 @@ export const generateCreativeImage = async (
   format: CreativeFormat,
   visualScene: string,
   visualStyle: string,
-  technicalPrompt: string,
   aspectRatio: string = "1:1",
   referenceImageBase64?: string,
   congruenceRationale?: string
@@ -36,7 +35,7 @@ export const generateCreativeImage = async (
   const country = project.targetCountry || "USA";
   const parsedAngle = parseAngle(angle);
   const culturePrompt = getCulturePrompt(country);
-  const personaVisuals = getPersonaVisualContext(persona, parsedAngle.cleanAngle);
+  const personaVisuals = getPersonaVisualContext(persona);
   
   // 1. GENERATE CUSTOM TEXT FOR FORMAT
   const embeddedText = await generateVisualText(project, format, parsedAngle);
@@ -81,7 +80,7 @@ export const generateCreativeImage = async (
 
   // 4. PACK FULL CONTEXT
   const ctx: PromptContext = {
-      project, format, parsedAngle, visualScene, visualStyle, technicalPrompt, 
+      project, format, parsedAngle, visualScene, visualStyle, 
       textCopyInstruction: "", 
       personaVisuals, moodPrompt, culturePrompt, 
       subjectFocus,
@@ -143,7 +142,6 @@ export const generateCarouselSlides = async (
   angle: string,
   visualScene: string,
   visualStyle: string,
-  technicalPrompt: string,
   fullStrategyContext: any,
   congruenceRationale?: string
 ): Promise<GenResult<{ imageUrls: string[]; prompts: string[] }>> => {
@@ -203,7 +201,8 @@ export const generateCarouselSlides = async (
         promptTokens += (response.usageMetadata?.promptTokenCount || 0);
     } catch (e) {
         console.error("Failed to generate slide prompts", e);
-        slidePrompts = [technicalPrompt, technicalPrompt, technicalPrompt]; // Fallback
+        // Fallback to visualScene if JSON generation fails
+        slidePrompts = [visualScene, visualScene, visualScene]; 
     }
 
     // 2. Generate Images for each Slide

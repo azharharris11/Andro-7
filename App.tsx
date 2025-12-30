@@ -370,7 +370,7 @@ const App: React.FC = () => {
               
               if (fmt.includes('Carousel')) {
                    const slidesRes = await GeminiService.generateCarouselSlides(
-                       project, fmt, angleToUse, concept.visualScene, concept.visualStyle, concept.technicalPrompt, fullStrategyContext,
+                       project, fmt, angleToUse, concept.visualScene, concept.visualStyle, fullStrategyContext,
                        concept.congruenceRationale // Pass rationale
                    );
                    if (slidesRes.data && slidesRes.data.imageUrls.length > 0) {
@@ -381,7 +381,7 @@ const App: React.FC = () => {
                    }
               } else {
                    const imgRes = await GeminiService.generateCreativeImage(
-                       project, fullStrategyContext, angleToUse, fmt, concept.visualScene, concept.visualStyle, concept.technicalPrompt, "1:1", undefined,
+                       project, fullStrategyContext, angleToUse, fmt, concept.visualScene, concept.visualStyle, "1:1", undefined,
                        concept.congruenceRationale // Pass rationale
                    );
                    imageUrl = imgRes.data.imageUrl;
@@ -466,7 +466,7 @@ const App: React.FC = () => {
       // We reuse the concept but regenerate the image
       const imgRes = await GeminiService.generateCreativeImage(
            project, fullStrategyContext, node.meta.angle, node.format!, 
-           concept.visualScene, concept.visualStyle, concept.technicalPrompt, aspectRatio,
+           concept.visualScene, concept.visualStyle, aspectRatio,
            undefined, concept.congruenceRationale // Pass rationale
       );
       

@@ -48,7 +48,7 @@ export const generateAIWrittenPrompt = async (ctx: PromptContext): Promise<strin
     };
 
     const systemPrompt = `
-    ROLE: World-Class AI Prompt Engineer & Creative Director specializing in "direct respons ads".
+    ROLE: World-Class AI Prompt Engineer & Creative Director specializing in "Ugly Ads".
     TASK: Create a single Strategically Raw, High-Conversion Image Generation Prompt.
 
     --- STRATEGIC CONTEXT ---

@@ -252,7 +252,6 @@ export interface ProjectContext {
 export interface CreativeConcept {
   visualScene: string;   
   visualStyle: string;   
-  technicalPrompt: string; 
   copyAngle: string;     
   rationale: string;
   congruenceRationale: string; 

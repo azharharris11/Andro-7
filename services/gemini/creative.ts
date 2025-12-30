@@ -1,3 +1,4 @@
+
 import { Type } from "@google/genai";
 import { 
   ProjectContext, 
@@ -113,16 +114,16 @@ export const generateCreativeConcept = async (
     Who: ${persona.name || "Target User"}
     Symptoms: ${personaPain}
     
-    **TASK:** 1. Create a visual scene that proves the text is true (Congruence).
-    2. Write a 'technicalPrompt' for Image Gen that includes clear instructions for text rendering.
+    **TASK:** 
+    1. Create a visual scene that proves the text is true (Congruence).
+    2. Define visual style, lighting, and mood.
     3. Ensure 'copyAngle' provides a clear transition for the caption writer.
 
     **OUTPUT JSON REQUIREMENTS:**
     - visualScene: Specific action/setup.
     - visualStyle: Camera type, lighting, mood.
-    - technicalPrompt: Detailed prompt for AI Image Generator.
     - copyAngle: The strategic "Hook" for the copywriter.
-    - rationale: Strategic reasonapa why this hooks the persona.
+    - rationale: Strategic reason why this hooks the persona.
     - congruenceRationale: Why the image supports the specific claim.
   `;
 
@@ -136,12 +137,12 @@ export const generateCreativeConcept = async (
         properties: {
           visualScene: { type: Type.STRING },
           visualStyle: { type: Type.STRING },
-          technicalPrompt: { type: Type.STRING },
+          // technicalPrompt Removed
           copyAngle: { type: Type.STRING },
           rationale: { type: Type.STRING },
           congruenceRationale: { type: Type.STRING }
         },
-        required: ["visualScene", "visualStyle", "technicalPrompt", "copyAngle", "rationale", "congruenceRationale"]
+        required: ["visualScene", "visualStyle", "copyAngle", "rationale", "congruenceRationale"]
       }
     }
   });

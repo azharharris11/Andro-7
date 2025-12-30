@@ -1,3 +1,4 @@
+
 import { ProjectContext, CreativeFormat, MarketAwareness } from "../../types";
 
 export interface ParsedAngle {
@@ -18,7 +19,8 @@ export interface PromptContext {
     parsedAngle: ParsedAngle;
     visualScene: string; // Diambil dari generateCreativeConcept
     visualStyle: string; // Diambil dari generateCreativeConcept
-    technicalPrompt: string; // Diambil dari generateCreativeConcept
+    // technicalPrompt dihapus
+    textCopyInstruction: string;
     personaVisuals: string; // Detail lingkungan spesifik persona
     moodPrompt: string;
     culturePrompt: string;
@@ -27,6 +29,9 @@ export interface PromptContext {
     rawPersona?: any;
     embeddedText?: string;
     aspectRatio?: string;
+    subjectFocus: string;
+    fullStoryContext: any;
+    congruenceRationale?: string;
 }
 
 /**
@@ -38,8 +43,6 @@ export const getSafetyGuidelines = (isUglyOrMeme: boolean): string => {
     2. NO Medical Gore or overly graphic body fluids.
     3. Humans must look realistic unless specified as cartoon.
   `;
-
-    }
 
   return `
     ${COMMON_RULES}
@@ -57,7 +60,6 @@ export const ENHANCERS = {
     AUTHENTIC_UGC: "Amateur social media post style, handheld look, non-studio lighting, raw and relatable."
 };
 
-/**
 /**
  * REFACTOR: Fokus pada 'Lingkungan' dan 'Vibe', bukan blocking kamera.
  * Ini membantu LLM di Concept untuk memperkaya adegan.
@@ -85,4 +87,28 @@ export const parseAngle = (angle: string): ParsedAngle => {
         isSolutionFocused: /fix|solve|cure|relief|trick|hack/i.test(lower),
         isUrgent: /now|today|immediately|urgent/i.test(lower)
     };
+};
+
+export const getCulturePrompt = (country: string): string => {
+  if (!country) return "";
+  const lower = country.toLowerCase();
+  
+  if (lower.includes("indonesia")) {
+    return "SETTING: Indonesia context. Typical Indonesian home interior or street environment. Use local nuances (e.g. tropical lighting, modest clothing if applicable).";
+  }
+  
+  return `SETTING: ${country} context. Ensure the environment, architectural style, and background characters match ${country}.`;
+};
+
+// Re-export this for logic in image.ts
+export const getSubjectFocus = (
+    marketAwareness: MarketAwareness,
+    personaVisuals: string,
+    parsedAngle: ParsedAngle,
+    project: ProjectContext
+): string => {
+    if (marketAwareness === MarketAwareness.UNAWARE) {
+        return "Focus on the SYMPTOM or PROBLEM. Do not show the product yet. Show the pain.";
+    }
+    return "Focus on the SOLUTION or PRODUCT.";
 };

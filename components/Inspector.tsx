@@ -50,8 +50,8 @@ const Inspector: React.FC<InspectorProps> = ({ node, onClose, onAnalyze, onUpdat
   const allImages = imageUrl ? [imageUrl, ...(carouselImages || [])] : [];
   const hasCarousel = allImages.length > 1;
   
-  // FIX: Prioritize the "Final Mega Prompt" if available, otherwise fallback to concept prompt
-  const technicalPrompt = node.meta?.finalGenerationPrompt || node.meta?.concept?.technicalPrompt;
+  // FIX: Prioritize the "Final Mega Prompt" if available
+  const technicalPrompt = node.meta?.finalGenerationPrompt;
   const rationale = node.meta?.concept?.rationale;
   
   // STRATEGY DNA EXTRACTION
