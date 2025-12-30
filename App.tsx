@@ -392,7 +392,7 @@ const App: React.FC = () => {
                        strategy.visualScene, 
                        strategy.visualStyle, 
                        "1:1", 
-                       strategy.textOverlay, // NEW: Using the Strategy-Defined Text
+                       strategy.embeddedText, // NEW: Using the Strategy-Defined Text
                        undefined,
                        strategy.congruenceRationale // Pass rationale
                    );
@@ -472,21 +472,6 @@ const App: React.FC = () => {
       handleUpdateNode(id, { isLoading: true });
       
       const concept = node.meta.concept;
-      // We don't have the "Text Overlay" stored in meta directly in old nodes, 
-      // but for new nodes we could store it. For now, let's extract it or use a default.
-      // Ideally, `concept` should have had it, but we kept the old `CreativeConcept` type in meta for compatibility.
-      // Let's rely on the prompt regeneration or the visual scene.
-      // For simplified regeneration, we might lose the specific "textOverlay" if not stored.
-      // Let's assume the user wants to keep the textOverlay implied in the visual scene or we pass a generic one.
-      
-      // FIX: To support regeneration properly with the new flow, we ideally need to store `textOverlay` in meta.
-      // But since we didn't add it to NodeData meta explicitly in the `addNode` above (we added `concept` which doesn't have it),
-      // we can try to extract it from the finalPrompt if needed, or just let `generateCreativeImage` use a default 
-      // if `embeddedText` is missing.
-      // HOWEVER, let's look at `handleGenerateCreatives`. We passed `strategy.textOverlay` to `generateCreativeImage`.
-      // We didn't save `strategy.textOverlay` in `node.meta`. 
-      // Let's update `handleGenerateCreatives` to save it in `meta` if possible, but for now, 
-      // let's just pass "Regenerated" or the Angle as text overlay fallback.
       
       const fullStrategyContext = {
           ...(node.meta || {}),
@@ -498,7 +483,7 @@ const App: React.FC = () => {
       const imgRes = await GeminiService.generateCreativeImage(
            project, fullStrategyContext, node.meta.angle, node.format!, 
            concept.visualScene, concept.visualStyle, aspectRatio,
-           node.title, // Fallback: Use Headline as Text Overlay for regeneration
+           node.title, // Fallback: Use Headline as Embedded Text for regeneration
            undefined, concept.congruenceRationale 
       );
       

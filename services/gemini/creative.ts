@@ -85,21 +85,21 @@ export const generateCreativeStrategy = async (
       strategyInstruction = `
         **PRIORITY: CONVERSION & OFFER**
         - Visual: "Hero Shot" of ${project.productName}. High quality, clean, trustworthy.
-        - Text Overlay: Urgent, scarcity-driven (e.g. "50% OFF", "Last Chance").
+        - Embedded Text: Urgent, scarcity-driven (e.g. "50% OFF", "Last Chance").
         - Copy Tone: Urgent, direct, promotional.
       `;
   } else if (strategyMode === StrategyMode.VISUAL_IMPULSE) {
       strategyInstruction = `
         **PRIORITY: AESTHETIC & DESIRE**
         - Visual: Aspirational, Pinterest-style, lifestyle focus.
-        - Text Overlay: Minimalist, 1-3 words max.
+        - Embedded Text: Minimalist, 1-3 words max.
         - Copy Tone: Minimalist, "cool", identity-driven.
       `;
   } else {
       strategyInstruction = `
         **PRIORITY: PATTERN INTERRUPT (Direct Response)**
         - Visual: Start with the PROBLEM/PAIN. Show a relatable human moment.
-        - Text Overlay: The "Hook" or "Question" that stops the scroll.
+        - Embedded Text: The "Hook" or "Question" that stops the scroll.
         - Copy Tone: Empathetic, raw, "Stop the scroll" energy.
       `;
   }
@@ -110,7 +110,7 @@ export const generateCreativeStrategy = async (
     **CONTEXT:**
     Strategy Mode: ${strategyMode}
     Format: ${format}
-    Target Country: ${country} (Native Language for Copy & Text Overlay)
+    Target Country: ${country} (Native Language for Copy & Embedded Text)
     Language Register: ${register}
 
     **STRATEGIC GUIDELINES:**
@@ -130,17 +130,17 @@ export const generateCreativeStrategy = async (
     **TASK:** 
     Design the COMPLETE Creative Asset in one cohesive step.
     1. **Visual Scene:** A detailed description of the image action that proves the hook.
-    2. **Text Overlay (Embedded on Image):** 1-5 words that appear ON the image/thumbnail. Must be short and punchy.
+    2. **Embedded Text (Overlay):** 1-5 words that appear ON the image/thumbnail. Must be short and punchy.
     3. **Ad Copy (Caption):** The primary text and headline for the ad post.
 
     **CRITICAL:** 
-    - The *Text Overlay* and *Visual Scene* must work together to create "Congruence" (The image proves the text).
-    - If format is "Native" (like Twitter/Reddit), the Text Overlay is the content of the tweet/post.
+    - The *Embedded Text* and *Visual Scene* must work together to create "Congruence" (The image proves the text).
+    - If format is "Native" (like Twitter/Reddit), the Embedded Text is the content of the tweet/post.
     
     **OUTPUT JSON:**
     - visualScene: Specific action/setup for the image generator.
     - visualStyle: Camera type, lighting, mood.
-    - textOverlay: The exact text string to render on the image (Native Language).
+    - embeddedText: The exact text string to render on the image (Native Language).
     - primaryText: Ad caption (Native Language).
     - headline: Ad headline (Max 7 words, Native Language).
     - cta: Button text (e.g. Shop Now).
@@ -160,14 +160,14 @@ export const generateCreativeStrategy = async (
           properties: {
             visualScene: { type: Type.STRING },
             visualStyle: { type: Type.STRING },
-            textOverlay: { type: Type.STRING },
+            embeddedText: { type: Type.STRING },
             primaryText: { type: Type.STRING },
             headline: { type: Type.STRING },
             cta: { type: Type.STRING },
             rationale: { type: Type.STRING },
             congruenceRationale: { type: Type.STRING }
           },
-          required: ["visualScene", "visualStyle", "textOverlay", "primaryText", "headline", "cta", "rationale"]
+          required: ["visualScene", "visualStyle", "embeddedText", "primaryText", "headline", "cta", "rationale"]
         }
       }
     });

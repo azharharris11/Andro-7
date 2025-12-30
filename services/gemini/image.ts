@@ -13,8 +13,6 @@ import {
 } from "./imageUtils";
 import { generateAIWrittenPrompt } from "./imagePrompts";
 
-// Removed import { generateVisualText } from "./imageText";
-
 export const generateCreativeImage = async (
   project: ProjectContext,
   persona: any,
@@ -39,9 +37,6 @@ export const generateCreativeImage = async (
   const culturePrompt = getCulturePrompt(country);
   const personaVisuals = getPersonaVisualContext(persona);
   
-  // 1. GENERATE CUSTOM TEXT FOR FORMAT -> REMOVED
-  // We now use the embeddedText passed from the one-shot strategy
-
   // 2. GET PSYCHOLOGICAL BLOCKING
   const subjectFocus = getSubjectFocus(
     project.marketAwareness || MarketAwareness.PROBLEM_AWARE, 
@@ -54,7 +49,7 @@ export const generateCreativeImage = async (
     CreativeFormat.UGLY_VISUAL, 
     CreativeFormat.MS_PAINT, 
     CreativeFormat.MEME, 
-    CreativeFormat.CARTOON,
+    CreativeFormat.CARTOON, 
     CreativeFormat.STICKY_NOTE_REALISM
   ].includes(format);
 

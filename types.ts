@@ -264,9 +264,9 @@ export interface CreativeConcept {
 export interface CreativeStrategyResult {
   visualScene: string;
   visualStyle: string;
-  textOverlay: string; // The specific text to render ON the image
-  primaryText: string; // The ad caption
+  embeddedText: string; // The specific text to render ON the image
   headline: string;    // The ad headline
+  primaryText: string; // The ad caption
   cta: string;
   rationale: string;
   congruenceRationale: string;
