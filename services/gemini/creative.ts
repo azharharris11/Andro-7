@@ -1,6 +1,16 @@
-
 import { Type } from "@google/genai";
-import { ProjectContext, CreativeFormat, AdCopy, CreativeConcept, GenResult, StoryOption, BigIdeaOption, MechanismOption, MarketAwareness, LanguageRegister, StrategyMode } from "../../types";
+import { 
+  ProjectContext, 
+  CreativeFormat, 
+  AdCopy, 
+  CreativeConcept, 
+  GenResult, 
+  StoryOption, 
+  BigIdeaOption, 
+  MechanismOption, 
+  LanguageRegister, 
+  StrategyMode 
+} from "../../types";
 import { ai, extractJSON } from "./client";
 
 export const generateSalesLetter = async (
@@ -11,24 +21,26 @@ export const generateSalesLetter = async (
   hook: string
 ): Promise<GenResult<string>> => {
   const model = "gemini-3-flash-preview";
+  const country = project.targetCountry || "Indonesia";
   
   const prompt = `
     ROLE: Direct Response Copywriter (Long Form / Advertorial Specialist).
+    TARGET COUNTRY: ${country}. 
     
-    TASK: Write a high-converting Sales Letter (or long-form Facebook Ad) that connects all the strategic dots.
+    TASK: Write a high-converting Sales Letter (long-form Facebook Ad) in the NATIVE language of ${country}.
     
-    STRATEGY STACK:
-    1. HOOK: "${hook}" (Grab attention).
-    2. STORY: "${story.narrative}" (Emotional Connection/Empathy).
-    3. THE SHIFT (Big Idea): "${bigIdea.headline}" - "${bigIdea.concept}" (Destroys old belief).
-    4. THE SOLUTION (Mechanism): "${mechanism.scientificPseudo}" - "${mechanism.ums}" (The new logic).
+    STRATEGY STACK (MUST CONNECT ALL DOTS):
+    1. HOOK: "${hook}" (The attention grabber).
+    2. STORY: "${story.narrative}" (The emotional bridge).
+    3. THE SHIFT (Big Idea): "${bigIdea.headline}" - "${bigIdea.concept}" (The new perspective).
+    4. THE SOLUTION (Mechanism): "${mechanism.scientificPseudo}" - "${mechanism.ums}" (The specific logic of how it works).
     5. OFFER: ${project.offer} for ${project.productName}.
     
     PRODUCT DETAILS:
     ${project.productDescription}
     
     TONE: Persuasive, storytelling-based, logical yet emotional.
-    FORMAT: Markdown. Use bolding for emphasis. Keep paragraphs short (1-2 sentences).
+    FORMAT: Markdown. Paragraphs: 1-2 sentences max. Use bolding for emphasis on core benefits.
   `;
 
   const response = await ai.models.generateContent({
@@ -45,95 +57,74 @@ export const generateSalesLetter = async (
 
 export const generateCreativeConcept = async (
   project: ProjectContext, 
-  fullStrategyContext: any, // Accepted properly now
+  fullStrategyContext: any, 
   angle: string, 
   format: CreativeFormat
 ): Promise<GenResult<CreativeConcept>> => {
   const model = "gemini-3-flash-preview";
-
-  const awareness = project.marketAwareness || "Problem Aware";
   const strategyMode = project.strategyMode || StrategyMode.DIRECT_RESPONSE;
   
-  // Extract Strategy Data safely
+  // Robust Extraction for Context
   const persona = fullStrategyContext || {};
-  const story = fullStrategyContext?.storyData;
+  const personaPain = persona.visceralSymptoms ? persona.visceralSymptoms.join(", ") : "General frustration";
   const mech = fullStrategyContext?.mechanismData;
   const bigIdea = fullStrategyContext?.bigIdeaData;
 
+  // DYNAMIC STRATEGY DIRECTION
   let strategyInstruction = "";
-
-  // DYNAMIC STRATEGY DIRECTION (The "Creative Director" Logic)
   if (strategyMode === StrategyMode.HARD_SELL) {
       strategyInstruction = `
-        **MODE: HARD SELL / PROMO**
-        1. FORGET "Storytelling" or "Struggle". Focus on the OFFER and the PRODUCT.
-        2. The visual MUST be a "Hero Shot" of the product. 
-        3. Make it look Premium, Trustworthy, and Urgent.
-        4. NO "Messy/Ugly" aesthetics unless specifically requested by format.
-        5. The Hook "${angle}" should be treated as a HEADLINE, not a story starter.
+        **PRIORITY: CONVERSION & OFFER**
+        - Visual: "Hero Shot" of ${project.productName}. High quality, clean, trustworthy.
+        - Tone: Urgent, direct, promotional.
+        - Override: If format is 'Ugly', maintain the low-fi vibe but the PRODUCT must remain the clear hero.
       `;
   } else if (strategyMode === StrategyMode.VISUAL_IMPULSE) {
       strategyInstruction = `
-        **MODE: VISUAL IMPULSE**
-        1. Focus on AESTHETIC and VIBE.
-        2. Make it look like a Pinterest/Instagram influencer shot.
-        3. Product must look desirable/aspirational.
-        4. NO "Pain/Suffering" visuals.
+        **PRIORITY: AESTHETIC & DESIRE**
+        - Visual: Aspirational, Pinterest-style, lifestyle focus.
+        - Tone: Minimalist, "cool", identity-driven.
+        - Forbidden: No "Pain/Suffering" visuals or overly clinical text.
       `;
   } else {
-      // Direct Response (Default)
       strategyInstruction = `
-        **MODE: DIRECT RESPONSE (Viral/Hook)**
-        1. Imagine the "Standard Boring Ad".
-        2. THROW IT IN THE TRASH.
-        3. Do the EXACT OPPOSITE. Create a Pattern Interrupt.
-        4. Focus on the PROBLEM (Pain) first.
+        **PRIORITY: PATTERN INTERRUPT (Direct Response)**
+        - Visual: Start with the PROBLEM/PAIN. Show a relatable "Messy" human moment.
+        - Tone: Empathetic, raw, "Stop the scroll" energy.
       `;
   }
 
-  // Extract detailed persona info if available
-  const personaIdentity = persona.profile || persona.name || "User";
-  const personaPain = persona.visceralSymptoms ? persona.visceralSymptoms.join(", ") : "General frustration";
-
   const prompt = `
-    # Role: Creative Director (Adaptable Style)
+    # Role: Creative Director (Meta Ads Specialist)
 
     **CONTEXT:**
     Strategy Mode: ${strategyMode}
     Format: ${format}
-    Context: ${project.targetCountry}
+    Target Country: ${project.targetCountry}
 
-    **DIRECTION RULES (CRITICAL):**
+    **STRATEGIC GUIDELINES:**
     ${strategyInstruction}
 
-    **INPUTS:**
-    Product Name: ${project.productName}
-    Product Description: ${project.productDescription}
-    Winning Insight (Hook): ${angle}
+    **CORE INPUTS:**
+    Product: ${project.productName} - ${project.productDescription}
+    Winning Insight: ${angle}
+    Mechanism Logic: ${mech?.ums || "Standard benefit"}
     
-    **STRATEGIC CONTEXT (USE THIS LOGIC):**
-    ${mech ? `Mechanism Action: ${mech.ums}` : ''}
-    ${bigIdea ? `Concept Shift: ${bigIdea.concept}` : ''}
+    **PERSONA DATA:**
+    Who: ${persona.name || "Target User"}
+    Symptoms: ${personaPain}
     
-    **PERSONA CONTEXT (CRITICAL):**
-    Who: ${personaIdentity}
-    Pain: ${personaPain}
-    *Ensure the visual scene reflects THIS specific person's life.*
-    
-    **CRITICAL FOR FORMAT '${format}':**
-    *   If 'IG Story Text Overlay': Leave ample "Negative Space" for text.
-    *   If 'Ugly Visual': Describe a chaotic, low-fidelity scene.
+    **TASK:** 1. Create a visual scene that proves the text is true (Congruence).
+    2. Write a 'technicalPrompt' for Image Gen that includes clear instructions for text rendering.
+    3. Ensure 'copyAngle' provides a clear transition for the caption writer.
 
-    **TASK:**
-    Create a concept that fits the Strategy Mode and Format.
-    
-    **OUTPUT REQUIREMENTS (JSON):**
-    1. **visualScene**: The Director's Note. Specific action.
-    2. **visualStyle**: Aesthetic vibe (e.g. "Disposable Camera", "Cinematic", "Candid").
-    3. **technicalPrompt**: Strict prompt for Image Gen.
-    4. **copyAngle**: Strategy for the copywriter.
-    5. **rationale**: Why this works.
-    6. **congruenceRationale**: Why the image proves the text.
+    **OUTPUT JSON REQUIREMENTS:**
+    - visualScene: Specific action/setup.
+    - visualStyle: Camera type, lighting, mood.
+    - technicalPrompt: Detailed prompt for AI Image Generator.
+    - copyAngle: The strategic "Hook" for the copywriter.
+    - rationale: Strategic reasonapa why this hooks the persona.
+    - congruenceRationale: Why the image supports the specific claim.
   `;
 
   const response = await ai.models.generateContent({
@@ -149,10 +140,7 @@ export const generateCreativeConcept = async (
           technicalPrompt: { type: Type.STRING },
           copyAngle: { type: Type.STRING },
           rationale: { type: Type.STRING },
-          congruenceRationale: { type: Type.STRING },
-          hookComponent: { type: Type.STRING },
-          bodyComponent: { type: Type.STRING },
-          ctaComponent: { type: Type.STRING }
+          congruenceRationale: { type: Type.STRING }
         },
         required: ["visualScene", "visualStyle", "technicalPrompt", "copyAngle", "rationale", "congruenceRationale"]
       }
@@ -168,7 +156,7 @@ export const generateCreativeConcept = async (
 
 export const generateAdCopy = async (
   project: ProjectContext, 
-  fullStrategyContext: any, // Contains Persona + Story + Mech
+  fullStrategyContext: any, 
   concept: CreativeConcept,
   angle: string, 
   format: CreativeFormat = CreativeFormat.UGLY_VISUAL,
@@ -176,124 +164,50 @@ export const generateAdCopy = async (
   mechanism?: MechanismOption
 ): Promise<GenResult<AdCopy>> => {
   const model = "gemini-3-flash-preview";
-  const country = project.targetCountry || "USA";
+  const country = project.targetCountry || "Indonesia";
   const register = project.languageRegister || LanguageRegister.CASUAL;
-  const awareness = project.marketAwareness || "Problem Aware";
   const strategyMode = project.strategyMode || StrategyMode.DIRECT_RESPONSE;
 
-  // Extract Context
   const persona = fullStrategyContext || {};
+  const story = fullStrategyContext?.storyData;
+  const bigIdea = fullStrategyContext?.bigIdeaData;
 
-  // --- 1. STRATEGY MODE OVERRIDE (Fixing "Amnesia") ---
   let strategyGuide = "";
-  
   if (strategyMode === StrategyMode.VISUAL_IMPULSE) {
-      strategyGuide = `
-        *** STRATEGY MODE: VISUAL IMPULSE / AESTHETIC ***
-        - FORBIDDEN: Do not use the "Problem-Agitate-Solution" framework.
-        - FORBIDDEN: Do not sound like a doctor or a salesman.
-        - GOAL: Sell the VIBE, the LOOK, and the IDENTITY.
-        - STYLE: Minimalist, cool, confident.
-        - STRUCTURE: Short Hook -> Aesthetic Benefit -> Link.
-        - EXAMPLE: "The only jacket you need this winter." (Not "Are you cold? Buy this.")
-      `;
+      strategyGuide = `Sell the VIBE and IDENTITY. Short, minimalist, confident. Avoid "Pain" language.`;
   } else if (strategyMode === StrategyMode.HARD_SELL) {
-      strategyGuide = `
-        *** STRATEGY MODE: HARD SELL / PROMO ***
-        - GOAL: Urgent Conversion.
-        - STYLE: Loud, direct, scarcity-driven.
-        - KEYWORDS: "50% Off", "Ending Soon", "Restock Alert".
-        - Don't tell a story. Just tell them the deal.
-      `;
+      strategyGuide = `Sell the OFFER and URGENCY. Scarcity-driven. Focus on the deal.`;
   } else {
-      strategyGuide = `
-        *** STRATEGY MODE: DIRECT RESPONSE (Scientific/Story) ***
-        - GOAL: Educate and persuade via Logic + Emotion.
-        - STYLE: Empathetic, insightful, slightly controversial.
-        - FRAMEWORK: Hook -> Story/Pain -> Mechanism Reveal -> Offer.
-        - Use the specific 'Visceral Symptoms' of the persona.
-      `;
+      strategyGuide = `Sell the LOGIC & EMOTION. Use the persona's Visceral Symptoms: ${persona.visceralSymptoms?.join(', ')}. Mention the mechanism benefit: ${mechanism?.ums || ""}.`;
   }
 
-  // --- 2. DYNAMIC TONE & LANGUAGE LOGIC ---
-  let toneInstruction = "";
-  
-  if (register.includes("Street/Slang")) {
-      toneInstruction = `
-        LANGUAGE TARGET: Native Slang/Street Language of ${country}.
-        - STYLE: Informal, raw, gen-z, social media native.
-        - IF INDONESIA: Use 'Gue/Lo', 'Banget', 'Sumpah', 'Jujurly'.
-        - VIBE: Bestie sharing a secret.
-      `;
-  } else if (register.includes("Formal/Professional")) {
-      toneInstruction = `
-        LANGUAGE TARGET: Formal/Professional Native Language of ${country}.
-        - STYLE: Respectful, articulate, trustworthy.
-        - VIBE: Consultant or Expert.
-      `;
-  } else {
-      toneInstruction = `
-        LANGUAGE TARGET: Casual/Conversational Native Language of ${country}.
-        - STYLE: Friendly, warm, easy to read.
-        - VIBE: Friendly neighbor or Mom blogger.
-      `;
-  }
-
-  // --- 3. FORMAT STYLE GUIDE ---
-  let formatStyleGuide = "";
-  switch (format) {
-      case CreativeFormat.TWITTER_REPOST:
-      case CreativeFormat.HANDHELD_TWEET:
-          formatStyleGuide = `FORMAT: TWEET. Max 280 chars. Cynical, funny, or "hot take". Lowercase aesthetic.`;
-          break;
-      case CreativeFormat.MEME:
-      case CreativeFormat.UGLY_VISUAL:
-          formatStyleGuide = `FORMAT: MEME CAPTION. 1 sentence. Sarcastic. "It be like that."`;
-          break;
-      case CreativeFormat.IG_STORY_TEXT:
-          formatStyleGuide = `FORMAT: IG STORY. Super short. "Tap for details".`;
-          break;
-      default:
-          formatStyleGuide = `FORMAT: FEED POST. Clear hook, valuable body, clear CTA.`;
-          break;
-  }
-
-  // --- 4. THE PROMPT ---
   const prompt = `
-    # ROLE: Viral Social Media Copywriter.
+    # ROLE: Social Media Copywriter (Direct Response Expert)
     
-    **YOUR ENEMY:** "Boring Marketing Copy".
+    **INPUTS:**
+    Target Country: ${country} (Write in NATIVE language)
+    Register: ${register}
+    Visual Concept: ${concept.visualScene}
+    Winning Hook: ${angle}
     
-    **INPUT CONTEXT:**
-    Product: ${project.productName}
-    Angle/Hook: "${angle}"
-    Creative Concept: "${concept.copyAngle}"
-    Visual Scene: "${concept.visualScene}"
-    
-    **PERSONA:**
-    Name: ${persona.name}
-    Pain: ${persona.visceralSymptoms ? persona.visceralSymptoms.join(', ') : 'N/A'}
-    
-    **STRATEGY SETTINGS (OBEY STRICTLY):**
+    **STRATEGY:**
     ${strategyGuide}
     
-    **LANGUAGE SETTINGS:**
-    ${toneInstruction}
-    **CRITICAL: Write in the NATIVE language of ${country}.**
-    
-    **FORMAT SETTINGS:**
-    ${formatStyleGuide}
-    
-    **MECHANISM RULE:**
-    ${mechanism ? `Hint at the mechanism "${mechanism.scientificPseudo}" but focus on the BENEFIT (${mechanism.ums}).` : ''}
+    **CONTEXT:**
+    ${story ? `Narrative Context: ${story.narrative}` : ''}
+    ${bigIdea ? `Big Idea Shift: ${bigIdea.concept}` : ''}
 
-    **TASK:** Write the Instagram/TikTok Caption & Headline.
+    **FORMAT RULES:**
+    ${format === CreativeFormat.MEME || format === CreativeFormat.UGLY_VISUAL ? '1 sentence, sarcastic/raw.' : 'Structure: Hook -> Body -> CTA.'}
+    
+    **TASK:** Write the Caption and Headline.
+    **CRITICAL:** Caption must be CONGRUENT with the visual concept: "${concept.visualScene}".
 
     **OUTPUT JSON:**
     {
-      "primaryText": "The caption/body copy.",
-      "headline": "The image headline (Max 7 words)",
-      "cta": "Button text (e.g. 'Shop Now', 'Learn More')"
+      "primaryText": "Caption copy in native language",
+      "headline": "Scroll-stopping headline (Max 7 words)",
+      "cta": "Action text (e.g. 'Coba Sekarang', 'Shop Now')"
     }
   `;
 
@@ -301,7 +215,7 @@ export const generateAdCopy = async (
     model,
     contents: prompt,
     config: {
-      temperature: 1.1, 
+      temperature: 1.0, 
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
