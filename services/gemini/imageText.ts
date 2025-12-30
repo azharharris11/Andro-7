@@ -21,8 +21,7 @@ export const generateTextInstruction = (format: CreativeFormat, parsedAngle: Par
  * Generates the specific string that will be rendered INTO the image.
  * This ensures the text matches the format's constraints (e.g. short for stickers, clickbait for email)
  * while allowing natural expression without strict word limits.
- */
-export const generateVisualText = async (
+ */export const generateVisualText = async (
     project: ProjectContext,
     format: CreativeFormat,
     parsedAngle: ParsedAngle
@@ -32,103 +31,134 @@ export const generateVisualText = async (
     const isIndo = project.targetCountry?.toLowerCase().includes("indonesia");
 
     const langInstruction = isIndo
-        ? "LANGUAGE: BAHASA INDONESIA (Gaul/Casual/Slang). Do NOT use English unless it is common slang (like 'Skincare')."
+        ? "LANGUAGE: BAHASA INDONESIA (Gaul/Casual/Slang). Hindari diksi formal marketing."
         : `LANGUAGE: Native language of ${project.targetCountry || "English"}.`;
 
     let taskInstruction = `
-        TASK: Rewrite the following Marketing Hook into a text string suitable for the specific visual format.
+        TASK: Transform the Marketing Hook into a visual text string.
         ORIGINAL HOOK: "${cleanAngle}"
-        CONSTRAINT: Ensure the text fits naturally within the visual format (e.g. subject line size vs magazine headline size), but prioritize expression over brevity.
+        CORE PRINCIPLE: "Clear over Clever". Teks harus terlihat seperti konten organik hasil ketikan manusia, bukan copy iklan.
     `;
 
-    // --- FORMAT SPECIFIC COPYWRITING RULES ---
-    if (format === CreativeFormat.GMAIL_UX) {
+    // --- FULL CATEGORY MAPPING (Meta Andromeda Logic) ---
+
+    // 1. NATIVE UI & SYSTEM NOTIF (Trigger: Curiosity & Personal Bias)
+    if ([
+        CreativeFormat.GMAIL_UX, 
+        CreativeFormat.DM_NOTIFICATION, 
+        CreativeFormat.REMINDER_NOTIF, 
+        CreativeFormat.CHAT_CONVERSATION
+    ].includes(format)) {
         taskInstruction += `
-            CONTEXT: Gmail Subject Line.
-            STYLE: Lowercase, personal, vulnerable, high curiosity. Looks like a friend or ex emailing you.
-            BAD: "Special Offer Inside"
-            GOOD: "we need to talk..." or "jujurly aku kecewa" or "my honest apology"
+            STYLE: "Intimate Leaked Secret". Lowercase, personal, dan sedikit 'vulnerable'. 
+            STRATEGY: Mimikri notifikasi dari teman atau pesan pribadi. Fokus pada Curiosity Gap.
+            EXAMPLE: "we need to talk..." atau "maaf, baru jujur sekarang" atau "not sure if you've seen this".
         `;
-    } else if (format === CreativeFormat.LONG_TEXT) {
+    } 
+
+    // 2. SOCIAL NATIVE (Trigger: Ingroup Bias & Authenticity)
+    else if ([
+        CreativeFormat.REDDIT_THREAD, 
+        CreativeFormat.TWITTER_REPOST, 
+        CreativeFormat.HANDHELD_TWEET, 
+        CreativeFormat.PHONE_NOTES
+    ].includes(format)) {
         taskInstruction += `
-            CONTEXT: Magazine/Editorial Main Headline.
-            STYLE: High-end, authoritative, bold serif style.
-            EXAMPLE: "The Silent Killer In Your Kitchen."
+            STYLE: "Confessional / Hot Take". 
+            STRATEGY: Gunakan format judul thread atau status viral. Harus menyertakan 'Key Emotion' (I struggle) atau wawasan kontroversial (Unpopular opinion).
+            EXAMPLE: "I struggle to keep up with [Keyword]..." atau "Unpopular opinion: [Pain Point] is actually a [Keyword] problem."
         `;
-    } else if (format === CreativeFormat.BIG_FONT) {
+    }
+
+    // 3. PATTERN INTERRUPT (Trigger: Stop-Scroll & Surprise Effect)
+    else if ([
+        CreativeFormat.BIG_FONT, 
+        CreativeFormat.REELS_THUMBNAIL, 
+        CreativeFormat.BILLBOARD
+    ].includes(format)) {
         taskInstruction += `
-            CONTEXT: Impact Text Overlay (Poster).
-            STYLE: Shocking, direct, brutal. Use CAPS LOCK.
-            EXAMPLE: "YOUR KNEES LIE." or "STOP MAKAN GULA."
+            STYLE: "Aggressive Call-out". Tipografi masif.
+            STRATEGY: Fokus pada kata kunci GEJALA (Symptom) yang brutal atau 'Ugly Visual' description untuk memicu 'Pattern Interrupt'.
+            EXAMPLE: "YOUR KNEES LIE." atau "JERAWAT BATU?" atau "STOP MAKAN GULA."
         `;
-    } else if (format === CreativeFormat.UGLY_VISUAL || format === CreativeFormat.MS_PAINT) {
+    }
+
+    // 4. UGLY / RAW / MEME (Trigger: Attention Restoration & Relatability)
+    else if ([
+        CreativeFormat.UGLY_VISUAL, 
+        CreativeFormat.MS_PAINT, 
+        CreativeFormat.MEME, 
+        CreativeFormat.CARTOON
+    ].includes(format)) {
         taskInstruction += `
-            CONTEXT: Meme text or ugly overlay.
-            STYLE: Blunt, funny, or brutally honest.
-            EXAMPLE: "Jerawat Batu?" or "Why am I like this?"
+            STYLE: "Brutally Honest / Shitpost Vibe". 
+            STRATEGY: Teks harus terasa seperti meme atau coretan kasar yang sangat relatable. Fokus pada relatabilitas situasi (POV), bukan produk.
+            EXAMPLE: "POV: You finally found the solution for [Pain Point]." atau "Me trying to [Action] without [Product]."
         `;
-    } else if (format === CreativeFormat.STICKY_NOTE_REALISM || format === CreativeFormat.WHITEBOARD) {
+    }
+
+    // 5. LOGIC, AUTHORITY & MECHANISM (Trigger: Intellectual Trust)
+    else if ([
+        CreativeFormat.WHITEBOARD, 
+        CreativeFormat.VENN_DIAGRAM, 
+        CreativeFormat.GRAPH_CHART, 
+        CreativeFormat.MECHANISM_XRAY,
+        CreativeFormat.ANNOTATED_PRODUCT,
+        CreativeFormat.BENEFIT_POINTERS
+    ].includes(format)) {
         taskInstruction += `
-            CONTEXT: Handwritten Note.
-            STYLE: Personal reminder, messy, urgent.
-            EXAMPLE: "Don't forget this!!" or "JANGAN LEWATKAN INI."
+            STYLE: "Handwritten Expert Insight". 
+            STRATEGY: Teks harus membongkar 'The Secret' atau menunjukkan mekanisme unik (UMS). Gunakan gaya coretan tangan untuk memicu bias keaslian.
+            EXAMPLE: "The [Keyword] Mechanism" atau "Why standard advice fails" atau "System for [Outcome]".
         `;
-    } else if (format === CreativeFormat.TWITTER_REPOST || format === CreativeFormat.HANDHELD_TWEET) {
+    }
+
+    // 6. EDITORIAL & TRUST (Trigger: Institutional Authority)
+    else if ([
+        CreativeFormat.PRESS_FEATURE, 
+        CreativeFormat.LONG_TEXT, 
+        CreativeFormat.STORY_QNA
+    ].includes(format)) {
         taskInstruction += `
-            CONTEXT: Viral Tweet Body.
-            STYLE: Controversial opinion or "Hot Take".
-            EXAMPLE: "Stop drinking coffee on an empty stomach if you want to live."
+            STYLE: "Institutional Authority". 
+            STRATEGY: Headline majalah atau News UX. Gunakan narasi 'thoughtful' atau cerita founder yang mendalam.
+            EXAMPLE: "The Silent Killer In Your Kitchen" atau "How this [Location] Founder solved [Pain Point]."
         `;
-    } else if (format === CreativeFormat.CHAT_CONVERSATION || format === CreativeFormat.DM_NOTIFICATION) {
+    }
+
+    // 7. CAROUSEL & JOURNEY (Trigger: Slippery Slope Effect)
+    else if ([
+        CreativeFormat.CAROUSEL_EDUCATIONAL, 
+        CreativeFormat.CAROUSEL_REAL_STORY, 
+        CreativeFormat.TIMELINE_JOURNEY
+    ].includes(format)) {
         taskInstruction += `
-            CONTEXT: Private Message / Notification Preview.
-            STYLE: Intimate, urgent, friend-to-friend gossip.
-            EXAMPLE: "Omg did you see this??" or "Sumpah ini gila banget."
+            STYLE: "Slippery Slope Listicle". 
+            STRATEGY: Teks slide pertama harus memaksa orang untuk swipe. Gunakan listicle atau perbandingan "Day 1 vs Day 30".
+            EXAMPLE: "5 Reasons Why [Product] is the best for [Persona]" atau "My [Keyword] journey (Day 1 - 30)."
         `;
-    } else if (format === CreativeFormat.IG_STORY_TEXT || format === CreativeFormat.STORY_QNA || format === CreativeFormat.STORY_POLL) {
+    }
+
+    // 8. DEFAULT / AESTHETIC
+    else {
         taskInstruction += `
-            CONTEXT: Instagram Story Sticker (Poll/Question).
-            STYLE: Interactive question or provocative statement.
-            EXAMPLE: "Do you struggle with this?" or "Sering ngerasa gini gak?"
-        `;
-    } else if (format === CreativeFormat.MEME) {
-        taskInstruction += `
-            CONTEXT: Top Text of a Meme.
-            STYLE: Relatable situation description.
-            Start with: "Me when..." or "pov:..."
-        `;
-    } else if (format === CreativeFormat.REDDIT_THREAD) {
-        taskInstruction += `
-            CONTEXT: Reddit Thread Title.
-            STYLE: Confessional, shocking, "TrueOffMyChest" vibe.
-            EXAMPLE: "I finally realized why my acne never goes away."
-        `;
-    } else {
-        // Default Fallback
-        taskInstruction += `
-            CONTEXT: Text overlay on image.
-            STYLE: Punchy, clear headline.
+            STYLE: "Minimalist & Clear". 
+            STRATEGY: Pastikan teks 'Clear over Clever'. Fokus pada 'Outcome' akhir.
         `;
     }
 
     const prompt = `
-        ROLE: Expert Direct Response Copywriter.
+        # ROLE: Expert Direct Response Copywriter (Meta Andromeda Specialist)
         ${langInstruction}
         ${taskInstruction}
         
-        CRITICAL: Output ONLY the final text string. Do not use quotation marks. Do not explain.
+        CRITICAL: Output HANYA teks final tanpa tanda kutip. Maksimal 12 kata (kecuali format LONG_TEXT atau REDDIT).
     `;
 
     try {
-        const response = await ai.models.generateContent({
-            model,
-            contents: prompt
-        });
-        
-        // Cleanup: Remove quotes if AI added them
+        const response = await ai.models.generateContent({ model, contents: prompt });
         return response.text?.trim()?.replace(/^"|"$/g, '') || cleanAngle;
     } catch (e) {
-        console.error("Visual Text Gen Failed", e);
-        return cleanAngle; // Fallback to original hook
+        return cleanAngle;
     }
 };
