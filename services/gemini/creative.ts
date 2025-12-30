@@ -83,26 +83,33 @@ export const generateCreativeStrategy = async (
   let strategyInstruction = "";
   if (strategyMode === StrategyMode.HARD_SELL) {
       strategyInstruction = `
-        **PRIORITY: CONVERSION & OFFER**
-        - Visual: "Hero Shot" of ${project.productName}. High quality, clean, trustworthy.
-        - Embedded Text: Urgent, scarcity-driven (e.g. "50% OFF", "Last Chance").
+        **PRIORITY: CONVERSION & OFFER (HARD SELL)**
+        - Visual: "Hero Shot" or "Product in Action". High clarity.
+        - Embedded Text: Urgent, scarcity-driven (e.g. "50% OFF", "Last Chance", "Restocked").
         - Copy Tone: Urgent, direct, promotional.
       `;
   } else if (strategyMode === StrategyMode.VISUAL_IMPULSE) {
       strategyInstruction = `
-        **PRIORITY: AESTHETIC & DESIRE**
+        **PRIORITY: AESTHETIC & DESIRE (VISUAL IMPULSE)**
         - Visual: Aspirational, Pinterest-style, lifestyle focus.
-        - Embedded Text: Minimalist, 1-3 words max.
+        - Embedded Text: Minimalist (1-3 words max) or NO text if better.
         - Copy Tone: Minimalist, "cool", identity-driven.
       `;
   } else {
       strategyInstruction = `
-        **PRIORITY: PATTERN INTERRUPT (Direct Response)**
-        - Visual: Start with the PROBLEM/PAIN. Show a relatable human moment.
+        **PRIORITY: PATTERN INTERRUPT (DIRECT RESPONSE)**
+        - Visual: Start with the PROBLEM/PAIN or a "Mechanism X-Ray".
         - Embedded Text: The "Hook" or "Question" that stops the scroll.
         - Copy Tone: Empathetic, raw, "Stop the scroll" energy.
       `;
   }
+
+  // Format Specific Override
+  let formatInstruction = "";
+  if (format === CreativeFormat.GMAIL_UX) formatInstruction = "Visual must look like a Gmail interface. Embedded Text is the 'Subject Line'.";
+  if (format === CreativeFormat.TWITTER_REPOST) formatInstruction = "Visual must look like a Tweet. Embedded Text is the 'Tweet Content'.";
+  if (format === CreativeFormat.REMINDER_NOTIF) formatInstruction = "Visual must look like a Lockscreen Notification. Embedded Text is the notification message.";
+  if (format === CreativeFormat.BILLBOARD) formatInstruction = "Visual is a billboard. Embedded Text is the billboard slogan.";
 
   const prompt = `
     # ROLE: World-Class Creative Strategist (Meta & TikTok Ads)
@@ -115,6 +122,7 @@ export const generateCreativeStrategy = async (
 
     **STRATEGIC GUIDELINES:**
     ${strategyInstruction}
+    ${formatInstruction}
 
     **CORE INPUTS:**
     Product: ${project.productName} - ${project.productDescription}
@@ -130,12 +138,11 @@ export const generateCreativeStrategy = async (
     **TASK:** 
     Design the COMPLETE Creative Asset in one cohesive step.
     1. **Visual Scene:** A detailed description of the image action that proves the hook.
-    2. **Embedded Text (Overlay):** 1-5 words that appear ON the image/thumbnail. Must be short and punchy.
+    2. **Embedded Text (Overlay):** The specific text that appears ON the image.
     3. **Ad Copy (Caption):** The primary text and headline for the ad post.
 
     **CRITICAL:** 
     - The *Embedded Text* and *Visual Scene* must work together to create "Congruence" (The image proves the text).
-    - If format is "Native" (like Twitter/Reddit), the Embedded Text is the content of the tweet/post.
     
     **OUTPUT JSON:**
     - visualScene: Specific action/setup for the image generator.
